@@ -183,7 +183,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private suspend fun handleAuth(username: String, pass: String, actionType: String): Boolean {
-        val url = "https://ts.net"
+        val url = "https://nikiclab01.tailfd4e2c.ts.net/php/chatter-app-3.0/api_auth.php"
         return try {
             val rawJson = JSONObject().apply {
                 put("action", actionType)
@@ -204,7 +204,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private suspend fun fetchChatMessages(): List<ChatMessage>? {
-        val url = "https://ts.net"
+        val url = "https://nikiclab01.tailfd4e2c.ts.net/php/chatter-app-3.0/api_chat.php"
         return try {
             val response: HttpResponse = withContext(Dispatchers.IO) { client.get(url) }
             val jsonObject = JSONObject(response.bodyAsText())
@@ -223,7 +223,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private suspend fun sendMessageToServer(username: String, message: String): Boolean {
-        val url = "https://ts.net"
+        val url = "https://nikiclab01.tailfd4e2c.ts.net/php/chatter-app-3.0/api_send.php"
         return try {
             val rawJson = JSONObject().apply {
                 put("username", username)
