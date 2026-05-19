@@ -48,7 +48,7 @@ class MainActivity : ComponentActivity() {
 
                 // Pokretanje mrežnog zahteva pri paljenju ekrana
                 LaunchedEffect(Unit) {
-                    val url = "https://ts.net"
+                    val url = "https://nikiclab01.tailfd4e2c.ts.net/php/chatter-app-3.0/api-chat.php"
                     try {
                         val response: HttpResponse = withContext(Dispatchers.IO) {
                             client.get(url)
