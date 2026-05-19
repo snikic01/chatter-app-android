@@ -27,8 +27,6 @@ import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsText
-import io.ktor.http.ContentType
-import io.ktor.http.contentType
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -38,7 +36,7 @@ data class ChatMessage(val username: String, val message: String, val date: Stri
 
 class MainActivity : ComponentActivity() {
 
-    // Ktor klijent konfigurisan da dopušta Tailscale sertifikate
+    // Ktor klijent konfigurisan da dopušta Tailscale sertifikate bez SSL blokade
     private val client = HttpClient(Android) {
         engine {
             sslManager = { httpsURLConnection ->
@@ -65,6 +63,7 @@ class MainActivity : ComponentActivity() {
             MaterialTheme {
                 var messagesList by remember { mutableStateOf(listOf<ChatMessage>()) }
                 var textInput by remember { mutableStateOf("") }
+                var uiStatusMessage by remember { mutableStateOf<String?>(null) }
                 val coroutineScope = rememberCoroutineScope()
                 val listState = rememberLazyListState()
 
@@ -92,6 +91,21 @@ class MainActivity : ComponentActivity() {
                         .fillMaxSize()
                         .background(Color(0xFFF5F5F5))
                 ) {
+                    // Traka za prikaz statusa ili grešaka slanja na vrhu ekrana
+                    uiStatusMessage?.let { msg ->
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            color = MaterialTheme.colorScheme.errorContainer
+                        ) {
+                            Text(
+                                text = msg,
+                                color = MaterialTheme.colorScheme.onErrorContainer,
+                                modifier = Modifier.padding(8.dp).align(Alignment.CenterHorizontally),
+                                fontSize = 12.sp
+                            )
+                        }
+                    }
+
                     // 1. Lista poruka
                     LazyColumn(
                         state = listState,
@@ -135,10 +149,15 @@ class MainActivity : ComponentActivity() {
                                     if (textInput.isNotBlank()) {
                                         val messageToSend = textInput
                                         textInput = ""
-                                        coroutineScope.launch {
+                                        uiStatusMessage = "Slanje poruke..."
+                                        // POKRETANJE PREKO NAMENSKE DISPATCHERS.MAIN NITI DA NE BLOKIRA UI
+                                        coroutineScope.launch(Dispatchers.Main) {
                                             val success = sendMessageToServer(currentUsername, messageToSend)
                                             if (success) {
+                                                uiStatusMessage = null // Skloni status ako je prošlo
                                                 refreshMessages()
+                                            } else {
+                                                uiStatusMessage = "Slanje nije uspelo! Proveri server."
                                             }
                                         }
                                     }
@@ -179,14 +198,16 @@ class MainActivity : ComponentActivity() {
     }
 
     private suspend fun sendMessageToServer(username: String, message: String): Boolean {
-        // ISPRAVLJENO: Vraćena ispravna Tailscale putanja do api_send.php ekrana
         val url = "https://ts.net"
         return try {
-            val rawJson = "{\"username\":\"$username\",\"message\":\"$message\"}"
+            val rawJson = JSONObject().apply {
+                put("username", username)
+                put("message", message)
+            }.toString()
 
             val response: HttpResponse = withContext(Dispatchers.IO) {
                 client.post(url) {
-                    contentType(ContentType.Application.Json)
+                    headers.append("Content-Type", "application/json")
                     setBody(rawJson)
                 }
             }
