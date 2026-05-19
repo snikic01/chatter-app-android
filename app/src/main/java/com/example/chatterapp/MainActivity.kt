@@ -18,6 +18,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.ktor.client.HttpClient
@@ -34,9 +35,10 @@ import org.json.JSONObject
 
 data class ChatMessage(val username: String, val message: String, val date: String)
 
+enum class Screen { LOGIN, REGISTER, CHAT }
+
 class MainActivity : ComponentActivity() {
 
-    // Ktor klijent konfigurisan da dopušta Tailscale sertifikate bez SSL blokade
     private val client = HttpClient(Android) {
         engine {
             sslManager = { httpsURLConnection ->
@@ -55,123 +57,123 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private val currentUsername = "nikic" // Tvoj verifikovani username iz baze
+    private var currentUsername = mutableStateOf("")
 
+    @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
             MaterialTheme {
+                var currentScreen by remember { mutableStateOf(Screen.LOGIN) }
                 var messagesList by remember { mutableStateOf(listOf<ChatMessage>()) }
                 var textInput by remember { mutableStateOf("") }
-                var uiStatusMessage by remember { mutableStateOf<String?>(null) }
+                var authErrorMessage by remember { mutableStateOf<String?>(null) }
                 val coroutineScope = rememberCoroutineScope()
                 val listState = rememberLazyListState()
 
-                // Funkcija za osvežavanje poruka
-                fun refreshMessages() {
-                    coroutineScope.launch {
-                        val fetched = fetchChatMessages()
-                        if (fetched != null) {
-                            messagesList = fetched
-                            if (messagesList.isNotEmpty()) {
-                                listState.animateScrollToItem(messagesList.size - 1)
+                LaunchedEffect(currentScreen) {
+                    if (currentScreen == Screen.CHAT) {
+                        while (true) {
+                            val fetched = fetchChatMessages()
+                            if (fetched != null) {
+                                messagesList = fetched
                             }
+                            kotlinx.coroutines.delay(3000)
                         }
                     }
                 }
 
-                // Povuci poruke pri pokretanju
-                // Automatsko osvežavanje četa na svake 3 sekunde (Polling)
-                LaunchedEffect(Unit) {
-                    while (true) {
-                        refreshMessages()
-                        kotlinx.coroutines.delay(3000) // Pauza od 3000 milisekundi (3 sekunde)
-                    }
-                }
-
-                // Glavni UI Raspored
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(Color(0xFFF5F5F5))
-                ) {
-                    // Traka za prikaz statusa ili grešaka slanja na vrhu ekrana
-                    uiStatusMessage?.let { msg ->
-                        Surface(
-                            modifier = Modifier.fillMaxWidth(),
-                            color = MaterialTheme.colorScheme.errorContainer
-                        ) {
-                            Text(
-                                text = msg,
-                                color = MaterialTheme.colorScheme.onErrorContainer,
-                                modifier = Modifier.padding(8.dp).align(Alignment.CenterHorizontally),
-                                fontSize = 12.sp
-                            )
-                        }
-                    }
-
-                    // 1. Lista poruka
-                    LazyColumn(
-                        state = listState,
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxWidth(),
-                        contentPadding = PaddingValues(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        items(messagesList) { msg ->
-                            ChatBubble(msg, isCurrentUser = msg.username == currentUsername)
-                        }
-                    }
-
-                    // 2. Traka na dnu za kucanje i slanje poruka
-                    Surface(
-                        modifier = Modifier.fillMaxWidth(),
-                        tonalElevation = 8.dp,
-                        shadowElevation = 8.dp
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .padding(12.dp)
-                                .navigationBarsPadding()
-                                .imePadding(),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            TextField(
-                                value = textInput,
-                                onValueChange = { textInput = it },
-                                placeholder = { Text("Ukucaj poruku...") },
-                                modifier = Modifier.weight(1f),
-                                colors = TextFieldDefaults.colors(
-                                    focusedContainerColor = Color.Transparent,
-                                    unfocusedContainerColor = Color.Transparent
-                                )
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            IconButton(
-                                onClick = {
-                                    if (textInput.isNotBlank()) {
-                                        val messageToSend = textInput
-                                        textInput = ""
-                                        uiStatusMessage = "Slanje poruke..."
-                                        // POKRETANJE PREKO NAMENSKE DISPATCHERS.MAIN NITI DA NE BLOKIRA UI
-                                        coroutineScope.launch(Dispatchers.Main) {
-                                            val success = sendMessageToServer(currentUsername, messageToSend)
-                                            if (success) {
-                                                uiStatusMessage = null // Skloni status ako je prošlo
-                                                refreshMessages()
-                                            } else {
-                                                uiStatusMessage = "Slanje nije uspelo! Proveri server."
-                                            }
-                                        }
+                when (currentScreen) {
+                    Screen.LOGIN -> {
+                        AuthScreen(
+                            isLogin = true,
+                            errorMessage = authErrorMessage,
+                            onActionClick = { user, pass ->
+                                authErrorMessage = "Provera..."
+                                coroutineScope.launch {
+                                    if (handleAuth(user, pass, "login")) {
+                                        currentUsername.value = user
+                                        authErrorMessage = null
+                                        currentScreen = Screen.CHAT
+                                    } else {
+                                        authErrorMessage = "Pogrešna šifra ili korisnik."
                                     }
                                 }
+                            },
+                            onSwitchScreen = {
+                                authErrorMessage = null
+                                currentScreen = Screen.REGISTER
+                            }
+                        )
+                    }
+                    Screen.REGISTER -> {
+                        AuthScreen(
+                            isLogin = false,
+                            errorMessage = authErrorMessage,
+                            onActionClick = { user, pass ->
+                                authErrorMessage = "Registracija..."
+                                coroutineScope.launch {
+                                    if (handleAuth(user, pass, "register")) {
+                                        currentUsername.value = user
+                                        authErrorMessage = null
+                                        currentScreen = Screen.CHAT
+                                    } else {
+                                        authErrorMessage = "Greška! Ime zauzeto."
+                                    }
+                                }
+                            },
+                            onSwitchScreen = {
+                                authErrorMessage = null
+                                currentScreen = Screen.LOGIN
+                            }
+                        )
+                    }
+                    Screen.CHAT -> {
+                        Column(modifier = Modifier.fillMaxSize().background(Color(0xFFF5F5F5))) {
+                            // Popravljen TopAppBar za Material 3 standard
+                            TopAppBar(
+                                title = { Text("Korisnik: ${currentUsername.value}", fontSize = 16.sp, fontWeight = FontWeight.Bold) },
+                                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+                            )
+
+                            LazyColumn(
+                                state = listState,
+                                modifier = Modifier.weight(1f).fillMaxWidth(),
+                                contentPadding = PaddingValues(16.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                Icon(
-                                    imageVector = Icons.AutoMirrored.Filled.Send,
-                                    contentDescription = "Pošalji",
-                                    tint = MaterialTheme.colorScheme.primary
-                                )
+                                items(messagesList) { msg ->
+                                    ChatBubble(msg, isCurrentUser = msg.username == currentUsername.value)
+                                }
+                            }
+
+                            Surface(modifier = Modifier.fillMaxWidth(), tonalElevation = 8.dp) {
+                                Row(
+                                    modifier = Modifier.padding(12.dp).navigationBarsPadding().imePadding(),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    TextField(
+                                        value = textInput,
+                                        onValueChange = { textInput = it },
+                                        placeholder = { Text("Ukucaj poruku...") },
+                                        modifier = Modifier.weight(1f),
+                                        colors = TextFieldDefaults.colors(focusedContainerColor = Color.Transparent, unfocusedContainerColor = Color.Transparent)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    IconButton(
+                                        onClick = {
+                                            if (textInput.isNotBlank()) {
+                                                val messageToSend = textInput
+                                                textInput = ""
+                                                coroutineScope.launch {
+                                                    sendMessageToServer(currentUsername.value, messageToSend)
+                                                }
+                                            }
+                                        }
+                                    ) {
+                                        Icon(imageVector = Icons.AutoMirrored.Filled.Send, contentDescription = "Pošalji", tint = MaterialTheme.colorScheme.primary)
+                                    }
+                                }
                             }
                         }
                     }
@@ -180,12 +182,32 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private suspend fun handleAuth(username: String, pass: String, actionType: String): Boolean {
+        val url = "https://ts.net"
+        return try {
+            val rawJson = JSONObject().apply {
+                put("action", actionType)
+                put("username", username)
+                put("password", pass)
+            }.toString()
+
+            val response: HttpResponse = withContext(Dispatchers.IO) {
+                client.post(url) {
+                    headers.append("Content-Type", "application/json")
+                    setBody(rawJson)
+                }
+            }
+            JSONObject(response.bodyAsText()).getString("status") == "success"
+        } catch (e: Exception) {
+            false
+        }
+    }
+
     private suspend fun fetchChatMessages(): List<ChatMessage>? {
-        val url = "https://nikiclab01.tailfd4e2c.ts.net/php/chatter-app-3.0/api_chat.php"
+        val url = "https://ts.net"
         return try {
             val response: HttpResponse = withContext(Dispatchers.IO) { client.get(url) }
-            val responseText = response.bodyAsText()
-            val jsonObject = JSONObject(responseText)
+            val jsonObject = JSONObject(response.bodyAsText())
             if (jsonObject.getString("status") == "success") {
                 val jsonArray = jsonObject.getJSONArray("messages")
                 val parsed = mutableListOf<ChatMessage>()
@@ -196,13 +218,12 @@ class MainActivity : ComponentActivity() {
                 parsed
             } else null
         } catch (e: Exception) {
-            Log.e("ChatterAppAI", "Greška osvežavanja: ${e.localizedMessage}")
             null
         }
     }
 
     private suspend fun sendMessageToServer(username: String, message: String): Boolean {
-        val url = "https://nikiclab01.tailfd4e2c.ts.net/php/chatter-app-3.0/api_send.php"
+        val url = "https://ts.net"
         return try {
             val rawJson = JSONObject().apply {
                 put("username", username)
@@ -215,12 +236,8 @@ class MainActivity : ComponentActivity() {
                     setBody(rawJson)
                 }
             }
-            val responseText = response.bodyAsText()
-            Log.d("ChatterAppAI", "Odgovor servera pri slanju: $responseText")
-
-            JSONObject(responseText).getString("status") == "success"
+            JSONObject(response.bodyAsText()).getString("status") == "success"
         } catch (e: Exception) {
-            Log.e("ChatterAppAI", "Greška pri slanju sa telefona: ${e.localizedMessage}")
             false
         }
     }
@@ -228,6 +245,62 @@ class MainActivity : ComponentActivity() {
     override fun onDestroy() {
         super.onDestroy()
         client.close()
+    }
+}
+
+@Composable
+fun AuthScreen(
+    isLogin: Boolean,
+    errorMessage: String?,
+    onActionClick: (String, String) -> Unit,
+    onSwitchScreen: () -> Unit
+) {
+    var usernameInput by remember { mutableStateOf("") }
+    var passwordInput by remember { mutableStateOf("") }
+
+    Box(modifier = Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Text(
+                text = if (isLogin) "Dobrodošao nazad" else "Napravi nalog",
+                fontSize = 28.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary
+            )
+
+            errorMessage?.let {
+                Text(text = it, color = if (it.contains("...")) Color.Gray else Color.Red, fontSize = 14.sp)
+            }
+
+            OutlinedTextField(
+                value = usernameInput,
+                onValueChange = { usernameInput = it },
+                label = { Text("Korisničko ime") },
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            OutlinedTextField(
+                value = passwordInput,
+                onValueChange = { passwordInput = it },
+                label = { Text("Lozinka") },
+                visualTransformation = PasswordVisualTransformation(),
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Button(
+                onClick = { if (usernameInput.isNotBlank() && passwordInput.isNotBlank()) onActionClick(usernameInput, passwordInput) },
+                modifier = Modifier.fillMaxWidth().height(50.dp)
+            ) {
+                Text(text = if (isLogin) "Prijavi se" else "Registruj se", fontSize = 16.sp)
+            }
+
+            TextButton(onClick = onSwitchScreen) {
+                Text(text = if (isLogin) "Nemaš nalog? Registruj se" else "Već imaš nalog? Prijavi se")
+            }
+        }
     }
 }
 
