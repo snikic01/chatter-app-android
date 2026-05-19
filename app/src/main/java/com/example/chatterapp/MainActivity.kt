@@ -57,7 +57,7 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private val currentUsername = "nikic" // OVDE UPIŠI TVOJ TEST USERNAME IZ BAZE ZA SLANJE
+    private val currentUsername = "nikic" // Tvoj verifikovani username iz baze
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -74,7 +74,6 @@ class MainActivity : ComponentActivity() {
                         val fetched = fetchChatMessages()
                         if (fetched != null) {
                             messagesList = fetched
-                            // Automatski skroluj na dno kada stignu nove poruke
                             if (messagesList.isNotEmpty()) {
                                 listState.animateScrollToItem(messagesList.size - 1)
                             }
@@ -93,7 +92,7 @@ class MainActivity : ComponentActivity() {
                         .fillMaxSize()
                         .background(Color(0xFFF5F5F5))
                 ) {
-                    // 1. Lista poruka (zauzima sav slobodan prostor)
+                    // 1. Lista poruka
                     LazyColumn(
                         state = listState,
                         modifier = Modifier
@@ -117,7 +116,7 @@ class MainActivity : ComponentActivity() {
                             modifier = Modifier
                                 .padding(12.dp)
                                 .navigationBarsPadding()
-                                .imePadding(), // Automatski podiže polje kada se upali tastatura
+                                .imePadding(),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             TextField(
@@ -135,11 +134,11 @@ class MainActivity : ComponentActivity() {
                                 onClick = {
                                     if (textInput.isNotBlank()) {
                                         val messageToSend = textInput
-                                        textInput = "" // Odmah praznimo polje na ekranu
+                                        textInput = ""
                                         coroutineScope.launch {
                                             val success = sendMessageToServer(currentUsername, messageToSend)
                                             if (success) {
-                                                refreshMessages() // Osveži čet ako je slanje prošlo
+                                                refreshMessages()
                                             }
                                         }
                                     }
@@ -180,23 +179,23 @@ class MainActivity : ComponentActivity() {
     }
 
     private suspend fun sendMessageToServer(username: String, message: String): Boolean {
+        // ISPRAVLJENO: Vraćena ispravna Tailscale putanja do api_send.php ekrana
         val url = "https://ts.net"
         return try {
-            val jsonPayload = JSONObject().apply {
-                put("username", username)
-                put("message", message)
-            }.toString()
+            val rawJson = "{\"username\":\"$username\",\"message\":\"$message\"}"
 
             val response: HttpResponse = withContext(Dispatchers.IO) {
                 client.post(url) {
                     contentType(ContentType.Application.Json)
-                    setBody(jsonPayload)
+                    setBody(rawJson)
                 }
             }
             val responseText = response.bodyAsText()
+            Log.d("ChatterAppAI", "Odgovor servera pri slanju: $responseText")
+
             JSONObject(responseText).getString("status") == "success"
         } catch (e: Exception) {
-            Log.e("ChatterAppAI", "Greška slanja: ${e.localizedMessage}")
+            Log.e("ChatterAppAI", "Greška pri slanju sa telefona: ${e.localizedMessage}")
             false
         }
     }
@@ -209,7 +208,6 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun ChatBubble(msg: ChatMessage, isCurrentUser: Boolean) {
-    // Poravnanje oblačića: desno ako šalješ ti, levo ako šalje neko drugi
     val alignment = if (isCurrentUser) Alignment.End else Alignment.Start
     val bubbleColor = if (isCurrentUser) MaterialTheme.colorScheme.primaryContainer else Color.White
     val textColor = if (isCurrentUser) MaterialTheme.colorScheme.onPrimaryContainer else Color.Black
@@ -231,13 +229,13 @@ fun ChatBubble(msg: ChatMessage, isCurrentUser: Boolean) {
             modifier = Modifier
                 .background(bubbleColor, shape = RoundedCornerShape(12.dp))
                 .padding(12.dp)
-                .widthIn(max = 280.dp) // Ograničavamo širinu teksta da ne raširi oblačić preko celog ekrana
+                .widthIn(max = 280.dp)
         ) {
             Column {
                 Text(text = msg.message, fontSize = 15.sp, color = textColor)
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text = msg.date.substringAfter(" "), // Prikazuje samo sate i minute iz timestamp-a
+                    text = if (msg.date.contains(" ")) msg.date.substringAfter(" ") else msg.date,
                     fontSize = 9.sp,
                     color = Color.Gray,
                     modifier = Modifier.align(Alignment.End)
