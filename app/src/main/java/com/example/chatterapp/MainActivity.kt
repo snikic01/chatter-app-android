@@ -81,8 +81,12 @@ class MainActivity : ComponentActivity() {
                 }
 
                 // Povuci poruke pri pokretanju
+                // Automatsko osvežavanje četa na svake 3 sekunde (Polling)
                 LaunchedEffect(Unit) {
-                    refreshMessages()
+                    while (true) {
+                        refreshMessages()
+                        kotlinx.coroutines.delay(3000) // Pauza od 3000 milisekundi (3 sekunde)
+                    }
                 }
 
                 // Glavni UI Raspored
