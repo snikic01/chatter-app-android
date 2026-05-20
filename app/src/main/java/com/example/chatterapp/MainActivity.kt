@@ -309,39 +309,15 @@ class MainActivity : ComponentActivity() {
                                                     val baseUrl = "http://ts.net"
 
                                                     if (idSign == 0) {
-                                                        // 1. Korisnik je kliknuo na dugme "Nazad" unutar četa
                                                         activeGroupId = 0
                                                         messagesList = emptyList()
-                                                    } else if (idSign == -99999) {
-                                                        // 2. --- NOVO: KREIRANJE NOVE GRUPE SA TELEFONA ---
-                                                        // Otvara se dijalog na ekranu, a ovde okidamo slanje na api_groups.php
-                                                        withContext(Dispatchers.IO) {
-                                                            try {
-                                                                val url = baseUrl + "api_groups.php"
-                                                                val jsonBody = JSONObject().apply {
-                                                                    put("action", "create")
-                                                                    put("username", currentUsername.value)
-                                                                    put("group_name", textInput) // Koristimo textInput za privremeno ime ili fiksni naziv
-                                                                }.toString()
-
-                                                                client.post(url) {
-                                                                    contentType(ContentType.Application.Json)
-                                                                    setBody(jsonBody)
-                                                                }
-                                                            } catch (e: Exception) {
-                                                                Log.e("ChatterCreateGroup", "Greška pri kreiranju: ${e.message}")
-                                                            }
-                                                        }
-                                                        activeGroupId = 0 // Osvežava ekran i vraća na listu grupa
                                                     } else if (idSign < 0) {
-                                                        // 3. NAPUŠTANJE ILI BRISANJE GRUPE (Negativni ID-jevi)
                                                         val actualGroupId = kotlin.math.abs(idSign)
                                                         val url = baseUrl + "api_groups.php"
 
                                                         withContext(Dispatchers.IO) {
                                                             try {
                                                                 if (actualGroupId >= 100) {
-                                                                    // Korisnik napušta grupu
                                                                     val realId = actualGroupId / 100
                                                                     val jsonBody = JSONObject().apply {
                                                                         put("action", "leave")
@@ -350,7 +326,6 @@ class MainActivity : ComponentActivity() {
                                                                     }.toString()
                                                                     client.post(url) { contentType(ContentType.Application.Json); setBody(jsonBody) }
                                                                 } else {
-                                                                    // Vlasnik briše grupu iz baze
                                                                     val jsonBody = JSONObject().apply {
                                                                         put("action", "delete")
                                                                         put("group_id", actualGroupId)
@@ -362,18 +337,17 @@ class MainActivity : ComponentActivity() {
                                                         }
                                                         activeGroupId = 0
                                                     } else {
-                                                        // 4. KORISNIK OTVARA OBIČAN ČET GRUPE (ID je pozitivan, npr. 8 ili 19)
                                                         activeGroupId = idSign
                                                         messagesList = emptyList()
 
-                                                        // Odmah šaljemo ispravan seen status na server čim korisnik uđe u čet
+                                                        // POPRAVLJENO: Šaljemo ispravno zatvoren JSON na api_seen.php preko porta 8080
                                                         withContext(Dispatchers.IO) {
                                                             try {
                                                                 val seenUrl = baseUrl + "api_seen.php"
                                                                 val jsonBody = JSONObject().apply {
                                                                     put("action", "mark")
                                                                     put("username", currentUsername.value)
-                                                                    put("group_id", idSign) // Šalje čist pozitivan ID grupe!
+                                                                    put("group_id", idSign)
                                                                 }.toString()
 
                                                                 client.post(seenUrl) {
@@ -386,8 +360,7 @@ class MainActivity : ComponentActivity() {
                                                         }
                                                     }
                                                 }
-                                            }
-                                            ,
+                                            },
                                             groupsList = groupsList
                                         )
                                     }
