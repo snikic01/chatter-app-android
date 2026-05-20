@@ -477,7 +477,7 @@ class MainActivity : ComponentActivity() {
     private suspend fun sendChatMessage(user: String, msg: String, groupId: Int): Boolean {
         return withContext(Dispatchers.IO) {
             try {
-                val url = "https://ts.net"
+                val url = "https://nikiclab01.tailfd4e2c.ts.net/php/chatter-app-3.0/api_send.php"
 
                 // 1. Pakujemo podatke u čist i pravilan JSON objekat koji server traži
                 val jsonBody = JSONObject().apply {
