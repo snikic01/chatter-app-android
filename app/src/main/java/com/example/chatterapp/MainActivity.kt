@@ -124,14 +124,23 @@ class MainActivity : ComponentActivity() {
                                     if (jsonResponse.optBoolean("success", false)) {
                                         val array = jsonResponse.getJSONArray("groups")
                                         val list = mutableListOf<com.example.chatterapp.screens.AndroidChatGroup>()
+
                                         for (i in 0 until array.length()) {
                                             val obj = array.getJSONObject(i)
+
+                                            // POPRAVLJENO: Eksplicitno čitamo tačne ključeve sa donjom crtom iz JSON-a
+                                            val gId = obj.getInt("id")
+                                            val gName = obj.getString("name")
+                                            val gIsOwner = obj.optBoolean("is_owner", false)
+                                            val gUnreadCount = obj.optInt("unread_count", 0)
+
+                                            // Ubacujemo podatke u tvoj lokalni model na ekranu
                                             list.add(
                                                 com.example.chatterapp.screens.AndroidChatGroup(
-                                                    id = obj.getInt("id"),
-                                                    name = obj.getString("name"),
-                                                    isOwner = obj.optInt("is_owner", 0) == 1,
-                                                    unreadCount = obj.optInt("unread_count", 0) // Ovde smo uvezali i brojač!
+                                                    id = gId,
+                                                    name = gName,
+                                                    isOwner = gIsOwner,
+                                                    unreadCount = gUnreadCount
                                                 )
                                             )
                                         }
