@@ -112,76 +112,56 @@ class MainActivity : ComponentActivity() {
                         while (true) {
                             try {
                                 val baseUrl = "http://" + "nikiclab01.tailfd4e2c.ts.net:8080/chatter-app-3.0/"
-                                // Čitamo direktno iz sesije da ime nikada ne ode prazno na server!
                                 val savedUser = sessionManager.getSavedUsername() ?: currentUsername.value
 
-                                if (activeGroupId == 0) {
-                                    // 1. Povlačimo sve grupe sa servera
-                                    val url = baseUrl + "api_groups.php?action=list&username=" + savedUser
-                                    val response = client.get(url)
-                                    val jsonResponse = JSONObject(response.bodyAsText())
-                                    if (jsonResponse.optBoolean("success", false)) {
-                                        val array = jsonResponse.getJSONArray("groups")
-                                        // --- DODAJ OVAJ LOG OVDE ---
-                                        Log.d("ChatterBUG", "Server vratio ukupno grupa: ${array.length()}")
+                                // --- 1. GRUPE SE SADA OSVEŽAVAJU UVEK U POZADINI (BEZ OBZIRA DA LI SI U ČETU ILI NE) ---
+                                val urlGroups = baseUrl + "api_groups.php?action=list&username=" + savedUser
+                                val responseGroups = client.get(urlGroups)
+                                val jsonGroups = JSONObject(responseGroups.bodyAsText())
 
-                                        val list = mutableListOf<com.example.chatterapp.screens.AndroidChatGroup>()
-                                        for (i in 0 until array.length()) {
-                                            val obj = array.getJSONObject(i)
+                                if (jsonGroups.optBoolean("success", false)) {
+                                    val array = jsonGroups.getJSONArray("groups")
+                                    val list = mutableListOf<com.example.chatterapp.screens.AndroidChatGroup>()
 
-                                            // --- DODAJ OVAJ LOG OVDE DA VIDIMO ŠTA STIŽE IZ MARIADB-a ---
-                                            Log.d("ChatterBUG", "Grupa ID: ${obj.getInt("id")}, Naziv: ${obj.getString("name")}, is_owner polje: ${obj.optInt("is_owner", -1)}")
+                                    for (i in 0 until array.length()) {
+                                        val obj = array.getJSONObject(i)
 
-                                            list.add(
-                                                com.example.chatterapp.screens.AndroidChatGroup(
-                                                    id = obj.getInt("id"),
-                                                    name = obj.getString("name"),
-                                                    isOwner = obj.optInt("is_owner", 0) == 1,
-                                                    unreadCount = obj.optInt("unread_count", 0)
-                                                )
+                                        // Tačno čitamo da li je trenutni korisnik vlasnik (1 ili 0 iz baze)
+                                        val isOwner = obj.optInt("is_owner", 0) == 1
+
+                                        list.add(
+                                            com.example.chatterapp.screens.AndroidChatGroup(
+                                                id = obj.getInt("id"),
+                                                name = obj.getString("name"),
+                                                isOwner = isOwner,
+                                                unreadCount = obj.optInt("unread_count", 0),
+                                                ownerName = obj.optString("owner_name", "") // Dinamički čitamo ime vlasnika sa sajta
                                             )
-                                        }
-                                        groupsList = list
+                                        )
                                     }
+                                    groupsList = list // Ekran i memorija se osvežavaju uživo!
+                                }
 
+                                // --- 2. AKO JE KORISNIK U ČETU (activeGroupId != 0), U ISTOM KRUGU VUČEMO I SVEŽE PORUKE ---
+                                if (activeGroupId != 0) {
+                                    val urlChat = baseUrl + "api_chat.php?group_id=" + activeGroupId
+                                    val responseChat = client.get(urlChat)
+                                    val jsonChat = JSONObject(responseChat.bodyAsText())
 
-                                    if (jsonResponse.optBoolean("success", false)) {
-                                        val array = jsonResponse.getJSONArray("groups")
-                                        val filteredList = mutableListOf<com.example.chatterapp.screens.AndroidChatGroup>()
+                                    if (jsonChat.optBoolean("success", true) || jsonChat.has("messages")) {
+                                        val jsonArray = jsonChat.getJSONArray("messages")
+                                        val listMsg = mutableListOf<com.example.chatterapp.data.ChatMessage>()
 
-                                        for (i in 0 until array.length()) {
-                                            val obj = array.getJSONObject(i)
-
-                                            // POPRAVLJENO MAPIRANJE VLASNIŠTVA: Čita 1 ili 0 iz MariaDB baze!
-                                            val isOwner = obj.optInt("is_owner", 0) == 1
-
-                                            filteredList.add(
-                                                com.example.chatterapp.screens.AndroidChatGroup(
-                                                    id = obj.getInt("id"),
-                                                    name = obj.getString("name"),
-                                                    isOwner = isOwner,
-                                                    unreadCount = obj.optInt("unread_count", 0)
-                                                )
-                                            )
-                                        }
-                                        groupsList = filteredList
-                                    }
-                                } else {
-                                    // 2. Ako je čet otvoren, osvežavamo poruke i seen status
-                                    val url = baseUrl + "api_chat.php?group_id=" + activeGroupId
-                                    val response = client.get(url)
-                                    val jsonResponse = JSONObject(response.bodyAsText())
-                                    if (jsonResponse.optBoolean("success", true) || jsonResponse.has("messages")) {
-                                        val jsonArray = jsonResponse.getJSONArray("messages")
-                                        val list = mutableListOf<com.example.chatterapp.data.ChatMessage>()
                                         for (i in 0 until jsonArray.length()) {
                                             val obj = jsonArray.getJSONObject(i)
                                             val seenArray = obj.optJSONArray("seen_by")
                                             val seenList = mutableListOf<String>()
                                             if (seenArray != null) {
-                                                for (j in 0 until seenArray.length()) { seenList.add(seenArray.getString(j)) }
+                                                for (j in 0 until seenArray.length()) {
+                                                    seenList.add(seenArray.getString(j))
+                                                }
                                             }
-                                            list.add(
+                                            listMsg.add(
                                                 com.example.chatterapp.data.ChatMessage(
                                                     username = obj.optString("username", "Anonimno"),
                                                     message = obj.optString("message", ""),
@@ -190,17 +170,16 @@ class MainActivity : ComponentActivity() {
                                                 )
                                             )
                                         }
-                                        messagesList = list
+                                        messagesList = listMsg
                                     }
                                 }
                             } catch (e: Exception) {
                                 Log.e("ChatterPolling", "Greška u mrežnoj petlji: ${e.message}")
                             }
-                            kotlinx.coroutines.delay(3000)
+                            kotlinx.coroutines.delay(3000) // Polling frekvencija na svake 3 sekunde
                         }
                     }
                 }
-
 
 
                 when (currentScreen) {

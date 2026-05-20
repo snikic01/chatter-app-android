@@ -30,7 +30,8 @@ data class AndroidChatGroup(
     val id: Int,
     val name: String,
     val isOwner: Boolean = false,
-    val unreadCount: Int = 0
+    val unreadCount: Int = 0,
+    val ownerName: String = "" // DODATO za vlasnika grupe
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
