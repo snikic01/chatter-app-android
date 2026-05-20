@@ -106,7 +106,7 @@ fun GroupsScreen(
             }
         }
     } else {
-        // --- 2. PRIKAZ ČETA UNUTAR SELEKTOVANE GRUPE (POPRAVLJENE STRUKTURALNE ZAGRADE) ---
+        // --- 2. PRIKAZ ČETA UNUTAR SELEKTOVANE GRUPE (POPRAVLJENA STRUKTURA BARA) ---
         Column(modifier = Modifier.fillMaxSize().background(Color(0xFFF5F5F5))) {
             Row(
                 modifier = Modifier
@@ -138,23 +138,23 @@ fun GroupsScreen(
                             onDismissRequest = { showMenu = false },
                             modifier = Modifier.background(Color.White)
                         ) {
-                            // 1. OPCIJA ZA SVE (I vlasnik i običan član mogu uvek da napuste grupu)
+                            // 1. OPCIJA ZA SVE (I vlasnik i običan član mogu uvek da napuste grupu i prenesu vlast)
                             DropdownMenuItem(
                                 text = { Text("Napusti grupu", color = Color.DarkGray) },
                                 leadingIcon = { Icon(Icons.Default.ExitToApp, contentDescription = null, tint = Color.DarkGray) },
                                 onClick = {
-                                    onGroupChange(-activeGroupId * 100)
+                                    onGroupChange(-activeGroupId * 100) // Prvo okida leave akciju
                                     showMenu = false
                                 }
                             )
 
-                            // 2. DODATNA OPCIJA (Vlasnik vidi i mogućnost da kompletno obriše grupu za sve)
+                            // 2. DODATNA OPCIJA (Garantovano se iscrtava vlasniku na tri tačke jer je struktura popravljena)
                             if (isOwnerOfCurrentGroup) {
                                 DropdownMenuItem(
                                     text = { Text("Obriši grupu (Za sve)", color = Color.Red, fontWeight = FontWeight.Bold) },
                                     leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null, tint = Color.Red) },
                                     onClick = {
-                                        onGroupChange(-activeGroupId)
+                                        onGroupChange(-activeGroupId) // Prvo okida delete akciju
                                         showMenu = false
                                     }
                                 )
@@ -162,9 +162,10 @@ fun GroupsScreen(
                         }
                     } // Zatvara Box ispravno
                 } // Zatvara desni Row dugmića ispravno
-            } // Zatvara celi plavi gornji Row ispravno
+            } // Zatvara celi gornji plavi Row ispravno
 
             LazyColumn(
+
                 state = listState,
                 modifier = Modifier.weight(1f).fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
