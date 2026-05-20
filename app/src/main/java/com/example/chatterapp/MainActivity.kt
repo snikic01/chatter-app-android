@@ -291,25 +291,33 @@ class MainActivity : ComponentActivity() {
                                             onSendMessageClick = {
                                                 if (textInput.isNotBlank() && activeGroupId != 0) {
                                                     coroutineScope.launch {
+                                                        // 1. Šaljemo poruku na server preko tvoje funkcije
                                                         val success = sendChatMessage(currentUsername.value, textInput, activeGroupId)
                                                         if (success) {
                                                             textInput = ""
 
-                                                            // POPRAVLJENO: Koristimo $activeGroupId umesto fiksnog broja 8!
-                                                            val url = "http://ts.net"
                                                             try {
-                                                                val response = client.get(url)
+                                                                // POPRAVLJENO: Koristimo tvoj NetworkConfig za povlačenje svežih poruka nakon slanja!
+                                                                val url = com.example.chatterapp.data.NetworkConfig.getChatUrl(activeGroupId)
+
+                                                                // Pozivamo Ktor na IO niti jer smo unutar coroutineScope-a
+                                                                val response = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                                                                    client.get(url)
+                                                                }
+
                                                                 val jsonResponse = JSONObject(response.bodyAsText())
                                                                 val jsonArray = jsonResponse.getJSONArray("messages")
                                                                 val list = mutableListOf<com.example.chatterapp.data.ChatMessage>()
+
                                                                 for (i in 0 until jsonArray.length()) {
                                                                     val obj = jsonArray.getJSONObject(i)
 
-                                                                    // Čitamo i viđeno listu da seen ne nestane pri brzom osvežavanju
                                                                     val seenArray = obj.optJSONArray("seen_by")
                                                                     val seenList = mutableListOf<String>()
                                                                     if (seenArray != null) {
-                                                                        for (j in 0 until seenArray.length()) { seenList.add(seenArray.getString(j)) }
+                                                                        for (j in 0 until seenArray.length()) {
+                                                                            seenList.add(seenArray.getString(j))
+                                                                        }
                                                                     }
 
                                                                     list.add(
@@ -321,9 +329,13 @@ class MainActivity : ComponentActivity() {
                                                                         )
                                                                     )
                                                                 }
+
+                                                                // Osvežavamo UI listu poruka i skrolujemo na dno
                                                                 messagesList = list
                                                                 listState.animateScrollToItem(messagesList.size)
-                                                            } catch (e: Exception) { }
+                                                            } catch (e: Exception) {
+                                                                Log.e("ChatterApp", "Greška pri osvežavanju nakon slanja: ${e.message}")
+                                                            }
                                                         }
                                                     }
                                                 }

@@ -11,4 +11,8 @@ object NetworkConfig {
     // Funkcije koje spajaju bazu sa tvojim PHP skriptama sa slike
     fun getGroupsUrl(username: String): String = "${BASE_URL}api_groups.php?action=list&username=$username"
     fun getChatUrl(groupId: Int): String = "${BASE_URL}api_chat.php?group_id=$groupId"
+
+    // NAPUŠTANJE I BRISANJE GRUPE
+    fun getLeaveGroupUrl(groupId: Int, username: String): String = "${BASE_URL}leave_group.php?group_id=$groupId&username=$username"
+    fun getDeleteGroupUrl(groupId: Int): String = "${BASE_URL}delete_group.php?group_id=$groupId"
 }
