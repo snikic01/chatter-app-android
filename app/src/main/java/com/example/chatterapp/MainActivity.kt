@@ -112,8 +112,13 @@ class MainActivity : ComponentActivity() {
                         while (true) {
                             try {
                                 if (activeGroupId == 0) {
-                                    // 1. Ako čet nije otvoren, povlačimo listu svih aktivnih grupa iz baze
-                                    val url = "https://nikiclab01.tailfd4e2c.ts.net/php/chatter-app-3.0/api_groups.php"
+                                    // Čitamo direktno iz SessionManager-a pre slanja zahteva
+                                    val savedUser = sessionManager.getSavedUsername() ?: currentUsername.value
+
+                                    // SPOJI RAZMACE OKO TAČAKA PRE LEPLJENJA:
+                                    val baseUrl = "https://nikiclab01 . tailfd4e2c . ts . net:8080/chatter-app-3.0/"
+                                    val url = baseUrl + "api_groups.php?action=list&username=" + savedUser
+
                                     val response = client.get(url)
                                     val jsonResponse = JSONObject(response.bodyAsText())
                                     if (jsonResponse.optBoolean("success", false)) {
@@ -125,13 +130,15 @@ class MainActivity : ComponentActivity() {
                                                 com.example.chatterapp.screens.AndroidChatGroup(
                                                     id = obj.getInt("id"),
                                                     name = obj.getString("name"),
-                                                    isOwner = obj.optInt("is_owner", 0) == 1
+                                                    isOwner = obj.optInt("is_owner", 0) == 1,
+                                                    unreadCount = obj.optInt("unread_count", 0) // Ovde smo uvezali i brojač!
                                                 )
                                             )
                                         }
                                         groupsList = list
                                     }
-                                } else {
+                                }
+                                else {
                                     // 2. Ako je čet otvoren, povlačimo poruke u realnom vremenu samo za tu izabranu grupu
                                     val url = "https://nikiclab01.tailfd4e2c.ts.net/php/chatter-app-3.0/api_chat.php"
                                     val response = client.get(url)

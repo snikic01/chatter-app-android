@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -24,7 +25,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.chatterapp.data.ChatMessage
 
-data class AndroidChatGroup(val id: Int, val name: String, val isOwner: Boolean = false)
+// Tvoj lokalni model proširen poljem unreadCount za brojač sa sajta
+data class AndroidChatGroup(
+    val id: Int,
+    val name: String,
+    val isOwner: Boolean = false,
+    val unreadCount: Int = 0
+)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -46,7 +53,7 @@ fun GroupsScreen(
     val isOwnerOfCurrentGroup = currentGroup?.isOwner ?: false
 
     if (activeGroupId == 0) {
-        // --- 1. PRIKAZ LISTE SVIH DOSTUPNIH GRUPA ---
+        // --- 1. PRIKAZ LISTE TVOJIH GRUPA (SA REPLICIRANIM WEB FILTEROM) ---
         Scaffold(
             topBar = { TopAppBar(title = { Text("Izaberi Čet Grupu", fontWeight = FontWeight.Bold) }) }
         ) { paddingValues ->
@@ -77,18 +84,21 @@ fun GroupsScreen(
                                 Text(text = if (group.isOwner) "Ti si vlasnik" else "Član si grupe", fontSize = 12.sp, color = Color.Gray)
                             }
 
-                            IconButton(onClick = {
-                                if (group.isOwner) {
-                                    onGroupChange(-group.id)
-                                } else {
-                                    onGroupChange(-group.id * 100)
+                            // --- CRVENI BADGE ZA NEPROČITANE PORUKE (Isto kao na veb aplikaciji) ---
+                            if (group.unreadCount > 0) {
+                                Box(
+                                    modifier = Modifier
+                                        .background(Color.Red, shape = CircleShape)
+                                        .padding(horizontal = 10.dp, vertical = 4.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = group.unreadCount.toString(),
+                                        color = Color.White,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
                                 }
-                            }) {
-                                Icon(
-                                    imageVector = if (group.isOwner) Icons.Default.Delete else Icons.Default.ExitToApp,
-                                    contentDescription = "Brza akcija",
-                                    tint = Color.LightGray
-                                )
                             }
                         }
                     }
@@ -173,13 +183,12 @@ fun GroupsScreen(
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(text = msg.message, color = if (isMyMessage) Color.White else Color.Black, fontSize = 15.sp)
 
-                                // --- INTEGRISAN SEEN STATUS DIREKTNO UNUTAR BALONČIĆA PORUKE ---
+                                // --- POLOŽAJ SEEN STATUS-A UNUTAR BALONČIĆA ---
                                 if (msg.seenBy.isNotEmpty()) {
                                     Spacer(modifier = Modifier.height(6.dp))
                                     Row(
                                         modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.End,
-                                        verticalAlignment = Alignment.CenterVertically
+                                        horizontalArrangement = Arrangement.End
                                     ) {
                                         Text(
                                             text = "✓ Viđeno: ${msg.seenBy.joinToString(", ")}",
