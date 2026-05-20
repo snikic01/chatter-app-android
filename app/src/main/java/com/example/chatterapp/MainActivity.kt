@@ -45,6 +45,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
+import com.example.chatterapp.data.ChatMessage
+
 
 data class ChatMessage(val username: String, val message: String, val date: String)
 
@@ -225,31 +227,68 @@ class MainActivity : ComponentActivity() {
                                     Tab.GROUPS -> {
                                         GroupsScreen(
                                             currentUsername = currentUsername.value,
-                                            messagesList = messagesList,
+                                            messagesList = messagesList, // Čisto prosleđivanje bez konflikta
                                             textInput = textInput,
                                             onTextInputChange = { textInput = it },
                                             onSendMessageClick = {
                                                 if (textInput.isNotBlank()) {
                                                     coroutineScope.launch {
-                                                        val success = sendChatMessage(
-                                                            currentUsername.value,
-                                                            textInput,
-                                                            activeGroupId
-                                                        )
+                                                        val success = sendChatMessage(currentUsername.value, textInput, activeGroupId)
                                                         if (success) {
                                                             textInput = ""
-                                                            val updated = fetchChatMessages()
+                                                            // Ponovo učitavamo poruke za trenutno aktivnu grupu
+                                                            val updated = withContext(Dispatchers.IO) {
+                                                                try {
+                                                                    // SPOJI RAZMACE OKO TAČAKA PRE LEPLJENJA:
+                                                                    val url = "https://nikiclab01 . tailfd4e2c . ts . net:8080/chatter-app-3.0/api_chat.php?group_id=$activeGroupId"
+                                                                    val response = client.get(url)
+                                                                    val jsonResponse = JSONObject(response.bodyAsText())
+                                                                    val jsonArray = jsonResponse.getJSONArray("messages")
+                                                                    val list = mutableListOf<ChatMessage>()
+                                                                    for (i in 0 until jsonArray.length()) {
+                                                                        val obj = jsonArray.getJSONObject(i)
+
+                                                                        // Čitamo i viđeno listu ako postoji
+                                                                        val seenArray = obj.optJSONArray("seen_by")
+                                                                        val seenList = mutableListOf<String>()
+                                                                        if (seenArray != null) {
+                                                                            for (j in 0 until seenArray.length()) {
+                                                                                seenList.add(seenArray.getString(j))
+                                                                            }
+                                                                        }
+
+                                                                        // ISPRAVLJENO: Prosleđujemo sva 4 parametra koja novi model zahteva
+                                                                        list.add(
+                                                                            ChatMessage(
+                                                                                username = obj.getString("username"),
+                                                                                message = obj.getString("message"),
+                                                                                date = obj.getString("sent_at"),
+                                                                                seenBy = seenList
+                                                                            )
+                                                                        )
+                                                                    }
+                                                                    list
+                                                                } catch (e: Exception) { null }
+                                                            }
                                                             if (updated != null) {
                                                                 messagesList = updated
-                                                                listState.animateScrollToItem(
-                                                                    messagesList.size
-                                                                )
+                                                                listState.animateScrollToItem(messagesList.size)
                                                             }
                                                         }
                                                     }
                                                 }
                                             },
-                                            listState = listState
+                                            listState = listState,
+                                            activeGroupId = activeGroupId,
+                                            onGroupChange = { izabraniId ->
+                                                activeGroupId = izabraniId
+                                                messagesList = emptyList() // Čistimo ekran pri promeni grupe
+                                            },
+                                            groupsList = listOf(
+                                                com.example.chatterapp.screens.AndroidChatGroup(8, "KontraverzniBiznismeni"),
+                                                com.example.chatterapp.screens.AndroidChatGroup(9, "Dizajneri I Developeri"),
+                                                com.example.chatterapp.screens.AndroidChatGroup(10, "Privatni Čet")
+                                            )
                                         )
                                     }
                                     Tab.PRIVATE -> {
