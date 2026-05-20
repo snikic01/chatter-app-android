@@ -306,7 +306,7 @@ class MainActivity : ComponentActivity() {
                                             activeGroupId = activeGroupId,
                                             onGroupChange = { idSign ->
                                                 coroutineScope.launch {
-                                                    // 1. ISPRAVLJENO: Spojen URL na portu 8080 sa http protokolom
+                                                    // 1. Čista, spojena HTTP putanja na portu 8080 bez dupliranja fajlova
                                                     val baseUrl = "http://" + "nikiclab01.tailfd4e2c.ts.net:8080/chatter-app-3.0/"
 
                                                     if (idSign == 0) {
@@ -314,7 +314,7 @@ class MainActivity : ComponentActivity() {
                                                         activeGroupId = 0
                                                         messagesList = emptyList()
                                                     } else if (idSign < 0) {
-                                                        // DETEKTOVANA AKCIJA UNUTAR ČETA (BRISANJE ILI NAPUŠTANJE)
+                                                        // DETEKTOVANA AKCIJA NAD GRUPOM (BRISANJE ILI NAPUŠTANJE)
                                                         val actualGroupId = kotlin.math.abs(idSign)
                                                         val url = baseUrl + "api_groups.php"
 
@@ -334,7 +334,7 @@ class MainActivity : ComponentActivity() {
                                                                         setBody(jsonBody)
                                                                     }
                                                                 } else {
-                                                                    // Vlasnik briše grupu iz baze
+                                                                    // Vlasnik briše celu grupu trajno iz baze
                                                                     val jsonBody = JSONObject().apply {
                                                                         put("action", "delete")
                                                                         put("group_id", actualGroupId)
@@ -348,19 +348,19 @@ class MainActivity : ComponentActivity() {
                                                                 }
                                                             } catch (e: Exception) { }
                                                         }
-                                                        activeGroupId = 0 // Vraća na osveženu listu grupa
+                                                        activeGroupId = 0 // Osvežava ekran i vraća na listu grupa
                                                     } else {
                                                         // 2. KORISNIK OTVARA OBIČAN ČET GRUPE (ID je pozitivan, npr. 8 ili 19)
                                                         activeGroupId = idSign
                                                         messagesList = emptyList()
 
-                                                        // ŠALJEMO ISPRAVAN SEEN STATUS NA SERVER PREKO NUMERIČKOG ID-JA 5
+                                                        // ŠALJEMO ISPRAVAN SEEN STATUS PREKO NUMERIČKOG ID-JA 5 DA BI UKLONIO KRUŽIĆ
                                                         withContext(Dispatchers.IO) {
                                                             try {
                                                                 val seenUrl = baseUrl + "api_seen.php"
                                                                 val jsonBody = JSONObject().apply {
                                                                     put("action", "mark")
-                                                                    put("user_id", 5) // POPRAVLJENO: Šaljemo direktno broj 5 iz MariaDB tabele!
+                                                                    put("user_id", 5) // PROMENJENO: Šaljemo direktno tvoj ispravan ID iz MariaDB baze!
                                                                     put("group_id", idSign)
                                                                 }.toString()
 
