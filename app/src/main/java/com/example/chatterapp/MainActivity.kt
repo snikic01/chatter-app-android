@@ -120,6 +120,30 @@ class MainActivity : ComponentActivity() {
                                     val url = baseUrl + "api_groups.php?action=list&username=" + savedUser
                                     val response = client.get(url)
                                     val jsonResponse = JSONObject(response.bodyAsText())
+                                    if (jsonResponse.optBoolean("success", false)) {
+                                        val array = jsonResponse.getJSONArray("groups")
+                                        // --- DODAJ OVAJ LOG OVDE ---
+                                        Log.d("ChatterBUG", "Server vratio ukupno grupa: ${array.length()}")
+
+                                        val list = mutableListOf<com.example.chatterapp.screens.AndroidChatGroup>()
+                                        for (i in 0 until array.length()) {
+                                            val obj = array.getJSONObject(i)
+
+                                            // --- DODAJ OVAJ LOG OVDE DA VIDIMO ŠTA STIŽE IZ MARIADB-a ---
+                                            Log.d("ChatterBUG", "Grupa ID: ${obj.getInt("id")}, Naziv: ${obj.getString("name")}, is_owner polje: ${obj.optInt("is_owner", -1)}")
+
+                                            list.add(
+                                                com.example.chatterapp.screens.AndroidChatGroup(
+                                                    id = obj.getInt("id"),
+                                                    name = obj.getString("name"),
+                                                    isOwner = obj.optInt("is_owner", 0) == 1,
+                                                    unreadCount = obj.optInt("unread_count", 0)
+                                                )
+                                            )
+                                        }
+                                        groupsList = list
+                                    }
+
 
                                     if (jsonResponse.optBoolean("success", false)) {
                                         val array = jsonResponse.getJSONArray("groups")
