@@ -106,7 +106,7 @@ fun GroupsScreen(
             }
         }
     } else {
-        // --- 2. PRIKAZ ČETA UNUTAR SELEKTOVANE GRUPE ---
+        // --- 2. PRIKAZ ČETA UNUTAR SELEKTOVANE GRUPE (POPRAVLJENE STRUKTURALNE ZAGRADE) ---
         Column(modifier = Modifier.fillMaxSize().background(Color(0xFFF5F5F5))) {
             Row(
                 modifier = Modifier
@@ -143,29 +143,26 @@ fun GroupsScreen(
                                 text = { Text("Napusti grupu", color = Color.DarkGray) },
                                 leadingIcon = { Icon(Icons.Default.ExitToApp, contentDescription = null, tint = Color.DarkGray) },
                                 onClick = {
-                                    // Prvo okidamo slanje pa tek onda gasimo meni da nit ne pukne
                                     onGroupChange(-activeGroupId * 100)
                                     showMenu = false
                                 }
                             )
 
-                            // 2. DODATNA OPCIJA (Samo vlasnik vidi i mogućnost da kompletno obriše grupu za sve)
+                            // 2. DODATNA OPCIJA (Vlasnik vidi i mogućnost da kompletno obriše grupu za sve)
                             if (isOwnerOfCurrentGroup) {
                                 DropdownMenuItem(
                                     text = { Text("Obriši grupu (Za sve)", color = Color.Red, fontWeight = FontWeight.Bold) },
                                     leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null, tint = Color.Red) },
                                     onClick = {
-                                        // Prvo okidamo slanje pa tek onda gasimo meni da nit ne pukne
                                         onGroupChange(-activeGroupId)
                                         showMenu = false
                                     }
                                 )
                             }
                         }
-
-                    }
-    }
-}
+                    } // Zatvara Box ispravno
+                } // Zatvara desni Row dugmića ispravno
+            } // Zatvara celi plavi gornji Row ispravno
 
             LazyColumn(
                 state = listState,
