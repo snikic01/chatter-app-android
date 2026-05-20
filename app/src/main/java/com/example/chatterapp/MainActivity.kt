@@ -113,7 +113,7 @@ class MainActivity : ComponentActivity() {
                             try {
                                 if (activeGroupId == 0) {
                                     // 1. Ako čet nije otvoren, povlačimo listu svih aktivnih grupa iz baze
-                                    val url = "https://ts.net{currentUsername.value}"
+                                    val url = "https://nikiclab01.tailfd4e2c.ts.net/php/chatter-app-3.0/api_groups.php"
                                     val response = client.get(url)
                                     val jsonResponse = JSONObject(response.bodyAsText())
                                     if (jsonResponse.optBoolean("success", false)) {
@@ -133,7 +133,7 @@ class MainActivity : ComponentActivity() {
                                     }
                                 } else {
                                     // 2. Ako je čet otvoren, povlačimo poruke u realnom vremenu samo za tu izabranu grupu
-                                    val url = "https://ts.net"
+                                    val url = "https://nikiclab01.tailfd4e2c.ts.net/php/chatter-app-3.0/api_chat.php"
                                     val response = client.get(url)
                                     val jsonResponse = JSONObject(response.bodyAsText())
                                     if (jsonResponse.optBoolean("success", true) || jsonResponse.has("messages")) {
@@ -274,7 +274,7 @@ class MainActivity : ComponentActivity() {
                                                         if (success) {
                                                             textInput = ""
                                                             // Ponovo brzo osvežavamo čet
-                                                            val url = "https://ts.net"
+                                                            val url = "https://nikiclab01.tailfd4e2c.ts.net/php/chatter-app-3.0/api_chat.php"
                                                             try {
                                                                 val response = client.get(url)
                                                                 val jsonResponse = JSONObject(response.bodyAsText())
@@ -302,7 +302,7 @@ class MainActivity : ComponentActivity() {
                                                     } else if (idSign < 0) {
                                                         // Detektovana je akcija nad grupom!
                                                         val actualGroupId = kotlin.math.abs(idSign)
-                                                        val url = "https://ts.net"
+                                                        val url = "https://nikiclab01.tailfd4e2c.ts.net/php/chatter-app-3.0/api_groups.php"
 
                                                         withContext(Dispatchers.IO) {
                                                             try {
@@ -335,7 +335,7 @@ class MainActivity : ComponentActivity() {
                                                         // Odmah šaljemo seen status na server da označi poruke kao viđene
                                                         withContext(Dispatchers.IO) {
                                                             try {
-                                                                val seenUrl = "https://ts.net"
+                                                                val seenUrl = "https://nikiclab01.tailfd4e2c.ts.net/php/chatter-app-3.0/api_seen.php"
                                                                 val jsonBody = JSONObject().apply {
                                                                     put("action", "mark")
                                                                     put("username", currentUsername.value)
