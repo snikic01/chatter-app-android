@@ -224,20 +224,26 @@ class MainActivity : ComponentActivity() {
                                     }
                                     Tab.GROUPS -> {
                                         GroupsScreen(
-                                            currentUsername = currentUsername.value, // PROSLEĐUJEMO STRNG OVDE
+                                            currentUsername = currentUsername.value,
                                             messagesList = messagesList,
                                             textInput = textInput,
                                             onTextInputChange = { textInput = it },
                                             onSendMessageClick = {
                                                 if (textInput.isNotBlank()) {
                                                     coroutineScope.launch {
-                                                        val success = sendChatMessage(currentUsername.value, textInput, activeGroupId)
+                                                        val success = sendChatMessage(
+                                                            currentUsername.value,
+                                                            textInput,
+                                                            activeGroupId
+                                                        )
                                                         if (success) {
                                                             textInput = ""
                                                             val updated = fetchChatMessages()
                                                             if (updated != null) {
                                                                 messagesList = updated
-                                                                listState.animateScrollToItem(messagesList.size)
+                                                                listState.animateScrollToItem(
+                                                                    messagesList.size
+                                                                )
                                                             }
                                                         }
                                                     }
