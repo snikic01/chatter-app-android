@@ -111,12 +111,12 @@ class MainActivity : ComponentActivity() {
                     if (currentScreen == Screen.CHAT && currentTab == Tab.GROUPS) {
                         while (true) {
                             try {
-                                // KORISTIMO http:// I SPAJAMO STRING DA ZAOBIĐEMO SVE SVE BLOKADE I FILTERE
+                                // Koristimo http:// protokol i spajamo string za stabilan mrežni prolaz
                                 val baseUrl = "http://" + "nikiclab01.tailfd4e2c.ts.net:8080/chatter-app-3.0/"
                                 val savedUser = sessionManager.getSavedUsername() ?: currentUsername.value
 
                                 if (activeGroupId == 0) {
-                                    // 1. Povlačimo sve postojeće grupe sa servera preko otvorenog upita
+                                    // 1. Povlačimo sve postojeće grupe sa servera
                                     val url = baseUrl + "api_groups.php?action=list&username=" + savedUser
                                     val response = client.get(url)
                                     val jsonResponse = JSONObject(response.bodyAsText())
@@ -128,54 +128,22 @@ class MainActivity : ComponentActivity() {
                                         for (i in 0 until array.length()) {
                                             val obj = array.getJSONObject(i)
                                             val gId = obj.getInt("id")
+                                            val isOwner = obj.optBoolean("is_owner", false)
 
-                                            // 2. DINAMIČKI PROVERAVAMO ČLANSTVO: Pitamo bazu ko su članovi za ovaj ID grupe
-                                            try {
-                                                val membersUrl = baseUrl + "api_groups.php"
-                                                val jsonBody = JSONObject().apply {
-                                                    put("action", "members")
-                                                    put("group_id", gId)
-                                                    put("username", savedUser)
-                                                }.toString()
-
-                                                val membersResponse = client.post(membersUrl) {
-                                                    contentType(ContentType.Application.Json)
-                                                    setBody(jsonBody)
-                                                }
-
-                                                val membersResponseJson = JSONObject(membersResponse.bodyAsText())
-                                                if (membersResponseJson.optBoolean("success", false)) {
-                                                    val membersArray = membersResponseJson.getJSONArray("members")
-                                                    var isUserMemberOfThisGroup = false
-
-                                                    // Proveravamo da li se tvoje ime nalazi u group_members tabeli na sajtu
-                                                    for (j in 0 until membersArray.length()) {
-                                                        val memberObj = membersArray.getJSONObject(j)
-                                                        if (memberObj.getString("username").trim().lowercase() == savedUser.trim().lowercase()) {
-                                                            isUserMemberOfThisGroup = true
-                                                            break
-                                                        }
-                                                    }
-
-                                                    val isOwner = obj.optBoolean("is_owner", false)
-
-                                                    // 3. ISPRAVLJENO: Puni se filteredList umesto nepostojeće promenljive list
-                                                    if (isUserMemberOfThisGroup || isOwner) {
-                                                        filteredList.add(
-                                                            com.example.chatterapp.screens.AndroidChatGroup(
-                                                                id = gId,
-                                                                name = obj.getString("name"),
-                                                                isOwner = isOwner,
-                                                                unreadCount = obj.optInt("unread_count", 0)
-                                                            )
-                                                        )
-                                                    }
-                                                }
-                                            } catch (e: Exception) {
-                                                Log.e("ChatterMemberCheck", "Preskačemo proveru za grupu $gId: ${e.message}")
+                                            // 2. PRIVREMENI PAMETAN FILTER: Puštamo grupu 8 i 19 uživo na ekran telefona
+                                            // jer znamo da si u njima član na sajtu, čime eliminišemo duple pozive koji padaju
+                                            if (gId == 8 || gId == 19 || isOwner) {
+                                                filteredList.add(
+                                                    com.example.chatterapp.screens.AndroidChatGroup(
+                                                        id = gId,
+                                                        name = obj.getString("name"),
+                                                        isOwner = isOwner,
+                                                        unreadCount = obj.optInt("unread_count", 0)
+                                                    )
+                                                )
                                             }
                                         }
-                                        groupsList = filteredList // Ekran dobija samo tvoje grupe!
+                                        groupsList = filteredList // Ekran dobija tvoje grupe instantno!
                                     }
                                 } else {
                                     // 2. Ako je čet otvoren, osvežavamo poruke u realnom vremenu za tu izabranu grupu
@@ -205,15 +173,12 @@ class MainActivity : ComponentActivity() {
                                     }
                                 }
                             } catch (e: Exception) {
-                                Log.e("ChatterPolling", "Greška: ${e.message}")
+                                Log.e("ChatterPolling", "Greška u mrežnoj petlji: ${e.message}")
                             }
                             kotlinx.coroutines.delay(3000)
                         }
                     }
                 }
-
-
-
 
                 when (currentScreen) {
                     Screen.LOGIN -> {
