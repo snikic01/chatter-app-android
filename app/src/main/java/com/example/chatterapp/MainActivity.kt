@@ -116,7 +116,7 @@ class MainActivity : ComponentActivity() {
                                     val savedUser = sessionManager.getSavedUsername() ?: currentUsername.value
 
                                     // SPOJI RAZMACE OKO TAČAKA PRE LEPLJENJA:
-                                    val baseUrl = "http://nikiclab01.tailfd4e2c.ts.net:8080/chatter-app-3.0/"
+                                    val baseUrl = "https://nikiclab01.tailfd4e2c.ts.net:8080/chatter-app-3.0/"
                                     val url = baseUrl + "api_groups.php?action=list&username=" + savedUser
 
                                     val response = client.get(url)
@@ -149,7 +149,7 @@ class MainActivity : ComponentActivity() {
                                 }
                                 else {
                                     // 2. Ako je čet otvoren, povlačimo poruke u realnom vremenu samo za tu izabranu grupu
-                                    val url = "http://nikiclab01.tailfd4e2c.ts.net/php/chatter-app-3.0/api_chat.php"
+                                    val url = "https://nikiclab01.tailfd4e2c.ts.net/php/chatter-app-3.0/api_chat.php"
                                     val response = client.get(url)
                                     val jsonResponse = JSONObject(response.bodyAsText())
                                     if (jsonResponse.optBoolean("success", true) || jsonResponse.has("messages")) {
