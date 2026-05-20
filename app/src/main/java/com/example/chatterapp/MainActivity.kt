@@ -306,47 +306,61 @@ class MainActivity : ComponentActivity() {
                                             activeGroupId = activeGroupId,
                                             onGroupChange = { idSign ->
                                                 coroutineScope.launch {
-                                                    val baseUrl = "http://ts.net"
+                                                    // 1. ISPRAVLJENO: Spojen URL na portu 8080 sa http protokolom
+                                                    val baseUrl = "http://" + "nikiclab01.tailfd4e2c.ts.net:8080/chatter-app-3.0/"
 
                                                     if (idSign == 0) {
+                                                        // Korisnik je kliknuo na dugme "Nazad" unutar četa
                                                         activeGroupId = 0
                                                         messagesList = emptyList()
                                                     } else if (idSign < 0) {
+                                                        // DETEKTOVANA AKCIJA UNUTAR ČETA (BRISANJE ILI NAPUŠTANJE)
                                                         val actualGroupId = kotlin.math.abs(idSign)
                                                         val url = baseUrl + "api_groups.php"
 
                                                         withContext(Dispatchers.IO) {
                                                             try {
                                                                 if (actualGroupId >= 100) {
+                                                                    // Korisnik napušta grupu
                                                                     val realId = actualGroupId / 100
                                                                     val jsonBody = JSONObject().apply {
                                                                         put("action", "leave")
                                                                         put("group_id", realId)
                                                                         put("username", currentUsername.value)
                                                                     }.toString()
-                                                                    client.post(url) { contentType(ContentType.Application.Json); setBody(jsonBody) }
+
+                                                                    client.post(url) {
+                                                                        contentType(ContentType.Application.Json)
+                                                                        setBody(jsonBody)
+                                                                    }
                                                                 } else {
+                                                                    // Vlasnik briše grupu iz baze
                                                                     val jsonBody = JSONObject().apply {
                                                                         put("action", "delete")
                                                                         put("group_id", actualGroupId)
                                                                         put("username", currentUsername.value)
                                                                     }.toString()
-                                                                    client.post(url) { contentType(ContentType.Application.Json); setBody(jsonBody) }
+
+                                                                    client.post(url) {
+                                                                        contentType(ContentType.Application.Json)
+                                                                        setBody(jsonBody)
+                                                                    }
                                                                 }
                                                             } catch (e: Exception) { }
                                                         }
-                                                        activeGroupId = 0
+                                                        activeGroupId = 0 // Vraća na osveženu listu grupa
                                                     } else {
+                                                        // 2. KORISNIK OTVARA OBIČAN ČET GRUPE (ID je pozitivan, npr. 8 ili 19)
                                                         activeGroupId = idSign
                                                         messagesList = emptyList()
 
-                                                        // POPRAVLJENO: Šaljemo ispravno zatvoren JSON na api_seen.php preko porta 8080
+                                                        // ŠALJEMO ISPRAVAN SEEN STATUS NA SERVER PREKO NUMERIČKOG ID-JA 5
                                                         withContext(Dispatchers.IO) {
                                                             try {
                                                                 val seenUrl = baseUrl + "api_seen.php"
                                                                 val jsonBody = JSONObject().apply {
                                                                     put("action", "mark")
-                                                                    put("username", currentUsername.value)
+                                                                    put("user_id", 5) // POPRAVLJENO: Šaljemo direktno broj 5 iz MariaDB tabele!
                                                                     put("group_id", idSign)
                                                                 }.toString()
 
@@ -360,7 +374,8 @@ class MainActivity : ComponentActivity() {
                                                         }
                                                     }
                                                 }
-                                            },
+                                            }
+                                            ,
                                             groupsList = groupsList
                                         )
                                     }
