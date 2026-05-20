@@ -47,9 +47,6 @@ import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import com.example.chatterapp.data.ChatMessage
 
-
-data class ChatMessage(val username: String, val message: String, val date: String)
-
 enum class Screen { LOGIN, REGISTER, CHAT }
 enum class Tab { DASHBOARD, GROUPS, PRIVATE, FRIENDS }
 
