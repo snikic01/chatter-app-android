@@ -2,6 +2,7 @@ package com.example.chatterapp.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.material3.Button
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -12,7 +13,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 @Composable
-fun DashboardScreen(username: String) {
+fun DashboardScreen(username: String, onNavigateToGroups: () -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -22,8 +23,10 @@ fun DashboardScreen(username: String) {
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(text = "Ulogovan si kao: $username 👋", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color(0xFF2196F3))
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(text = "Arhitektura ekrana je uspešno resetovana i modularna!", fontSize = 14.sp, color = Color.Gray)
+            Spacer(modifier = Modifier.height(16.dp))
+            Button(onClick = onNavigateToGroups) {
+                Text("Otvori Čet Grupe")
+            }
         }
     }
 }

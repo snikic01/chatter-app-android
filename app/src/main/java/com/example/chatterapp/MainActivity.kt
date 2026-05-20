@@ -1,36 +1,58 @@
 package com.example.chatterapp
 
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.filled.MailOutline
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+
+// UVOZIMO SAMO FAJLOVE KOJI SIGURNO POSTOJE U TVOM REPOZITORIJUMU
 import com.example.chatterapp.screens.DashboardScreen
+import com.example.chatterapp.screens.GroupsScreen
+
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.android.Android
+import io.ktor.client.request.get
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsText
+import io.ktor.http.ContentType
+import io.ktor.http.contentType
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 
-enum class Screen { LOGIN, REGISTER, MAIN_APP }
+data class ChatMessage(val username: String, val message: String, val date: String)
+
+enum class Screen { LOGIN, REGISTER, CHAT }
+enum class Tab { DASHBOARD, GROUPS, PRIVATE, FRIENDS }
 
 class MainActivity : ComponentActivity() {
 
-    // Ktor klijent sa Tailscale SSL bajpasom
-    val client = HttpClient(Android) {
+    // Globalni mrežni klijent sa Tailscale SSL bajpasom
+    private val client = HttpClient(Android) {
         engine {
             sslManager = { httpsURLConnection ->
                 val trustAllCerts = arrayOf<javax.net.ssl.TrustManager>(
@@ -48,14 +70,35 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private var currentUsername = mutableStateOf("")
+
+    @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
             MaterialTheme {
                 var currentScreen by remember { mutableStateOf(Screen.LOGIN) }
-                var loggedInUser by remember { mutableStateOf("") }
+                var currentTab by remember { mutableStateOf(Tab.DASHBOARD) }
+                var messagesList by remember { mutableStateOf(listOf<ChatMessage>()) }
+                var textInput by remember { mutableStateOf("") }
                 var authErrorMessage by remember { mutableStateOf<String?>(null) }
+                var activeGroupId by remember { mutableStateOf(8) }
+
                 val coroutineScope = rememberCoroutineScope()
+                val listState = rememberLazyListState()
+
+                // Polling za automatsko osvežavanje poruka na svake 3 sekunde
+                LaunchedEffect(currentScreen, currentTab) {
+                    if (currentScreen == Screen.CHAT && currentTab == Tab.GROUPS) {
+                        while (true) {
+                            val fetched = fetchChatMessages()
+                            if (fetched != null) {
+                                messagesList = fetched
+                            }
+                            kotlinx.coroutines.delay(3000)
+                        }
+                    }
+                }
 
                 when (currentScreen) {
                     Screen.LOGIN -> {
@@ -66,9 +109,10 @@ class MainActivity : ComponentActivity() {
                                 authErrorMessage = "Provera..."
                                 coroutineScope.launch {
                                     if (handleAuth(user, pass, "login")) {
-                                        loggedInUser = user
+                                        currentUsername.value = user
                                         authErrorMessage = null
-                                        currentScreen = Screen.MAIN_APP
+                                        currentScreen = Screen.CHAT
+                                        currentTab = Tab.DASHBOARD
                                     } else {
                                         authErrorMessage = "Pogrešna šifra ili korisnik."
                                     }
@@ -88,9 +132,10 @@ class MainActivity : ComponentActivity() {
                                 authErrorMessage = "Registracija..."
                                 coroutineScope.launch {
                                     if (handleAuth(user, pass, "register")) {
-                                        loggedInUser = user
+                                        currentUsername.value = user
                                         authErrorMessage = null
-                                        currentScreen = Screen.MAIN_APP
+                                        currentScreen = Screen.CHAT
+                                        currentTab = Tab.DASHBOARD
                                     } else {
                                         authErrorMessage = "Greška! Ime zauzeto."
                                     }
@@ -102,9 +147,109 @@ class MainActivity : ComponentActivity() {
                             }
                         )
                     }
-                    Screen.MAIN_APP -> {
-                        // ČISTO POZIVANJE: MainActivity otvara Dashboard iz screens foldera!
-                        DashboardScreen(username = loggedInUser)
+                    Screen.CHAT -> {
+                        Scaffold(
+                            bottomBar = {
+                                NavigationBar(containerColor = Color.White) {
+                                    NavigationBarItem(
+                                        icon = { Icon(Icons.Default.Home, contentDescription = "Početna") },
+                                        label = { Text("Početna") },
+                                        selected = currentTab == Tab.DASHBOARD,
+                                        onClick = { currentTab = Tab.DASHBOARD }
+                                    )
+                                    NavigationBarItem(
+                                        icon = { Icon(Icons.Default.List, contentDescription = "Grupe") },
+                                        label = { Text("Grupe") },
+                                        selected = currentTab == Tab.GROUPS,
+                                        onClick = { currentTab = Tab.GROUPS }
+                                    )
+                                    NavigationBarItem(
+                                        icon = { Icon(Icons.Default.MailOutline, contentDescription = "Privatno") },
+                                        label = { Text("Privatno") },
+                                        selected = currentTab == Tab.PRIVATE,
+                                        onClick = { currentTab = Tab.PRIVATE }
+                                    )
+                                    NavigationBarItem(
+                                        icon = { Icon(Icons.Default.Person, contentDescription = "Prijatelji") },
+                                        label = { Text("Prijatelji") },
+                                        selected = currentTab == Tab.FRIENDS,
+                                        onClick = { currentTab = Tab.FRIENDS }
+                                    )
+                                }
+                            }
+                        ) { paddingValues ->
+                            Box(modifier = Modifier.padding(paddingValues)) {
+                                when (currentTab) {
+                                    Tab.DASHBOARD -> {
+                                        DashboardScreen(
+                                            username = currentUsername.value,
+                                            onNavigateToGroups = { currentTab = Tab.GROUPS }
+                                        )
+                                    }
+                                    Tab.GROUPS -> {
+                                        Column(modifier = Modifier.fillMaxSize()) {
+                                            Box(modifier = Modifier.weight(0.35f)) {
+                                                GroupsScreen(onGroupSelect = { groupId -> activeGroupId = groupId })
+                                            }
+                                            Column(modifier = Modifier.weight(0.65f).background(Color(0xFFF5F5F5))) {
+                                                TopAppBar(
+                                                    title = { Text("Grupa ID: $activeGroupId", fontSize = 14.sp, fontWeight = FontWeight.Bold) },
+                                                    colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+                                                )
+                                                LazyColumn(
+                                                    state = listState,
+                                                    modifier = Modifier.weight(1f).fillMaxWidth(),
+                                                    contentPadding = PaddingValues(12.dp),
+                                                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                                                ) {
+                                                    items(messagesList) { msg ->
+                                                        ChatBubble(msg, isCurrentUser = msg.username == currentUsername.value)
+                                                    }
+                                                }
+                                                Surface(modifier = Modifier.fillMaxWidth(), tonalElevation = 4.dp) {
+                                                    Row(
+                                                        modifier = Modifier.padding(8.dp).navigationBarsPadding().imePadding(),
+                                                        verticalAlignment = Alignment.CenterVertically
+                                                    ) {
+                                                        TextField(
+                                                            value = textInput,
+                                                            onValueChange = { textInput = it },
+                                                            placeholder = { Text("Ukucaj poruku...") },
+                                                            modifier = Modifier.weight(1f),
+                                                            colors = TextFieldDefaults.colors(focusedContainerColor = Color.Transparent, unfocusedContainerColor = Color.Transparent)
+                                                        )
+                                                        Spacer(modifier = Modifier.width(6.dp))
+                                                        IconButton(
+                                                            onClick = {
+                                                                if (textInput.isNotBlank()) {
+                                                                    val messageToSend = textInput
+                                                                    textInput = ""
+                                                                    coroutineScope.launch {
+                                                                        sendMessageToServer(currentUsername.value, messageToSend)
+                                                                    }
+                                                                }
+                                                            }
+                                                        ) {
+                                                            Icon(imageVector = Icons.AutoMirrored.Filled.Send, contentDescription = "Pošalji", tint = MaterialTheme.colorScheme.primary)
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                    Tab.PRIVATE -> {
+                                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                            Text("✉️ Privatne poruke 1-na-1 (Uskoro)", fontSize = 15.sp, color = Color.Gray)
+                                        }
+                                    }
+                                    Tab.FRIENDS -> {
+                                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                            Text("👥 Lista prijatelja sa weba (Uskoro)", fontSize = 15.sp, color = Color.Gray)
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -120,9 +265,52 @@ class MainActivity : ComponentActivity() {
                 put("password", pass)
             }.toString()
 
+            val responseText = withContext(Dispatchers.IO) {
+                val response: HttpResponse = client.post(url) {
+                    contentType(ContentType.Application.Json)
+                    setBody(rawJson)
+                }
+                response.bodyAsText()
+            }
+
+            Log.d("ChatterAppAI", "Auth odgovor sa servera: $responseText")
+            JSONObject(responseText).getString("status") == "success"
+        } catch (e: Exception) {
+            Log.e("ChatterAppAI", "Auth mrežna greška: ${e.localizedMessage}")
+            false
+        }
+    }
+
+    private suspend fun fetchChatMessages(): List<ChatMessage>? {
+        val url = "https://nikiclab01.tailfd4e2c.ts.net/php/chatter-app-3.0/api_chat.php"
+        return try {
+            val response: HttpResponse = withContext(Dispatchers.IO) { client.get(url) }
+            val jsonObject = JSONObject(response.bodyAsText())
+            if (jsonObject.getString("status") == "success") {
+                val jsonArray = jsonObject.getJSONArray("messages")
+                val parsed = mutableListOf<ChatMessage>()
+                for (i in 0 until jsonArray.length()) {
+                    val item = jsonArray.getJSONObject(i)
+                    parsed.add(ChatMessage(item.getString("username"), item.getString("message"), item.getString("date")))
+                }
+                parsed
+            } else null
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    private suspend fun sendMessageToServer(username: String, message: String): Boolean {
+        val url = "hhttps://nikiclab01.tailfd4e2c.ts.net/php/chatter-app-3.0/api_send.php"
+        return try {
+            val rawJson = JSONObject().apply {
+                put("username", username)
+                put("message", message)
+            }.toString()
+
             val response: HttpResponse = withContext(Dispatchers.IO) {
                 client.post(url) {
-                    headers.append("Content-Type", "application/json")
+                    contentType(ContentType.Application.Json)
                     setBody(rawJson)
                 }
             }
@@ -153,6 +341,26 @@ fun AuthScreen(isLogin: Boolean, errorMessage: String?, onActionClick: (String, 
                 Text(text = if (isLogin) "Prijavi se" else "Registruj se", fontSize = 16.sp)
             }
             TextButton(onClick = onSwitchScreen) { Text(text = if (isLogin) "Nemaš nalog? Registruj se" else "Već imaš nalog? Prijavi se") }
+        }
+    }
+}
+
+@Composable
+fun ChatBubble(msg: ChatMessage, isCurrentUser: Boolean) {
+    val alignment = if (isCurrentUser) Alignment.End else Alignment.Start
+    val bubbleColor = if (isCurrentUser) MaterialTheme.colorScheme.primaryContainer else Color.White
+    val textColor = if (isCurrentUser) MaterialTheme.colorScheme.onPrimaryContainer else Color.Black
+
+    Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = alignment) {
+        if (!isCurrentUser) {
+            Text(text = msg.username, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.Gray, modifier = Modifier.padding(start = 4.dp, bottom = 2.dp))
+        }
+        Box(modifier = Modifier.background(bubbleColor, shape = RoundedCornerShape(12.dp)).padding(12.dp).widthIn(max = 280.dp)) {
+            Column {
+                Text(text = msg.message, fontSize = 15.sp, color = textColor)
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(text = if (msg.date.contains(" ")) msg.date.substringAfter(" ") else msg.date, fontSize = 9.sp, color = Color.Gray, modifier = Modifier.align(Alignment.End))
+            }
         }
     }
 }
