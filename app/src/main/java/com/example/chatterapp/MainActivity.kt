@@ -348,7 +348,7 @@ class MainActivity : ComponentActivity() {
                                                         coroutineScope.launch {
                                                             withContext(Dispatchers.IO) {
                                                                 try {
-                                                                    val baseUrl = "https://nikiclab01.tailfd4e2c.ts.net/php/chatter-app-3.0/api_seen.php"
+                                                                    val baseUrl = "https://nikiclab01.tailfd4e2c.ts.net/php/chatter-app-3.0/"
                                                                     val seenUrl = baseUrl + "api_seen.php"
 
                                                                     val jsonBody = JSONObject().apply {
