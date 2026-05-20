@@ -109,24 +109,17 @@ class MainActivity : ComponentActivity() {
                 // Polling za automatsko osvežavanje poruka osiguran od pucanja
                 LaunchedEffect(currentScreen, currentTab, activeGroupId) {
                     if (currentScreen == Screen.CHAT && currentTab == Tab.GROUPS) {
-                        // Prebacujemo mrežni rad i parsiranje na IO nit radi maksimalne glatkoće UI-ja
                         kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
                             while (true) {
-                                // OSIGURANJE: Ako je korisnik promenio ekran dok je petlja spavala, odmah prekidamo rad!
                                 if (currentScreen != Screen.CHAT || currentTab != Tab.GROUPS) {
                                     break
                                 }
 
                                 try {
-                                    val protokol = "http://"
-                                    val domen = "nikiclab01.tailfd4e2c.ts.net"
-                                    val port = ":8080"
-                                    val putanja = "/chatter-app-3.0/"
-                                    val baseUrl = protokol + domen + port + putanja
                                     val savedUser = sessionManager.getSavedUsername() ?: currentUsername.value
 
-                                    // --- 1. GRUPE ---
-                                    val urlGroups = baseUrl + "api_groups.php?action=list&username=" + savedUser
+                                    // --- 1. GRUPE (Pozivamo tvoj NetworkConfig) ---
+                                    val urlGroups = com.example.chatterapp.data.NetworkConfig.getGroupsUrl(savedUser)
                                     val responseGroups = client.get(urlGroups)
                                     val jsonGroups = JSONObject(responseGroups.bodyAsText())
 
@@ -148,15 +141,14 @@ class MainActivity : ComponentActivity() {
                                                 )
                                             )
                                         }
-                                        // Vraćamo se na glavnu nit samo da bismo osvežili UI državu
                                         kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
                                             groupsList = list
                                         }
                                     }
 
-                                    // --- 2. PORUKE (AKO JE KORISNIK U AKTIVNOM ČETU) ---
+                                    // --- 2. PORUKE (Pozivamo tvoj NetworkConfig) ---
                                     if (activeGroupId != 0) {
-                                        val urlChat = baseUrl + "api_chat.php?group_id=" + activeGroupId
+                                        val urlChat = com.example.chatterapp.data.NetworkConfig.getChatUrl(activeGroupId)
                                         val responseChat = client.get(urlChat)
                                         val jsonChat = JSONObject(responseChat.bodyAsText())
 
@@ -182,7 +174,6 @@ class MainActivity : ComponentActivity() {
                                                     )
                                                 )
                                             }
-                                            // Vraćamo se na glavnu nit za osvežavanje poruka
                                             kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
                                                 messagesList = listMsg
                                             }
@@ -192,14 +183,11 @@ class MainActivity : ComponentActivity() {
                                     Log.e("ChatterPolling", "Greška u mrežnoj petlji: ${e.message}")
                                 }
 
-                                // Sačekaj 3 sekunde pre sledećeg kruga
                                 kotlinx.coroutines.delay(3000)
                             }
                         }
                     }
                 }
-
-
 
                 when (currentScreen) {
                     Screen.LOGIN -> {

@@ -1,7 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<network-security-config>
-<domain-config cleartextTrafficPermitted="true">
-    <!-- Dozvoljava bilo koji Tailscale domen -->
-    <domain includeSubdomains="true">https://nikiclab01.tailfd4e2c.ts.net/</domain>
-</domain-config>
-</network-security-config>
