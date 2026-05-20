@@ -111,7 +111,7 @@ class MainActivity : ComponentActivity() {
                     if (currentScreen == Screen.CHAT && currentTab == Tab.GROUPS) {
                         while (true) {
                             try {
-                                val baseUrl = "http://ts.net"
+                                val baseUrl = "http://" + "nikiclab01.tailfd4e2c.ts.net:8080/chatter-app-3.0/"
                                 // Čitamo direktno iz sesije da ime nikada ne ode prazno na server!
                                 val savedUser = sessionManager.getSavedUsername() ?: currentUsername.value
 
