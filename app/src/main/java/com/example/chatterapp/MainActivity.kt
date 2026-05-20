@@ -127,21 +127,16 @@ class MainActivity : ComponentActivity() {
 
                                         for (i in 0 until array.length()) {
                                             val obj = array.getJSONObject(i)
-                                            val gId = obj.getInt("id")
-                                            val isOwner = obj.optBoolean("is_owner", false)
 
-                                            // 2. PRIVREMENI PAMETAN FILTER: Puštamo grupu 8 i 19 uživo na ekran telefona
-                                            // jer znamo da si u njima član na sajtu, čime eliminišemo duple pozive koji padaju
-                                            if (gId == 8 || gId == 19 || isOwner) {
-                                                filteredList.add(
-                                                    com.example.chatterapp.screens.AndroidChatGroup(
-                                                        id = gId,
-                                                        name = obj.getString("name"),
-                                                        isOwner = isOwner,
-                                                        unreadCount = obj.optInt("unread_count", 0)
-                                                    )
+                                            // POPRAVLJENO: Uklonjen privremeni filter! Sada prihvatamo sve dinamičke grupe koje nam vrati ispravni API sa servera
+                                            filteredList.add(
+                                                com.example.chatterapp.screens.AndroidChatGroup(
+                                                    id = obj.getInt("id"),
+                                                    name = obj.getString("name"),
+                                                    isOwner = obj.optBoolean("is_owner", false),
+                                                    unreadCount = obj.optInt("unread_count", 0)
                                                 )
-                                            }
+                                            )
                                         }
                                         groupsList = filteredList // Ekran dobija tvoje grupe instantno!
                                     }
@@ -179,6 +174,7 @@ class MainActivity : ComponentActivity() {
                         }
                     }
                 }
+
 
                 when (currentScreen) {
                     Screen.LOGIN -> {
