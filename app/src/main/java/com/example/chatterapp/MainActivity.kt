@@ -284,8 +284,9 @@ class MainActivity : ComponentActivity() {
                                                         val success = sendChatMessage(currentUsername.value, textInput, activeGroupId)
                                                         if (success) {
                                                             textInput = ""
-                                                            // Ponovo brzo osvežavamo čet
-                                                            val url = "https://nikiclab01.tailfd4e2c.ts.net/php/chatter-app-3.0/api_chat.php"
+
+                                                            // POPRAVLJENO: Koristimo $activeGroupId umesto fiksnog broja 8!
+                                                            val url = "http://ts.net"
                                                             try {
                                                                 val response = client.get(url)
                                                                 val jsonResponse = JSONObject(response.bodyAsText())
@@ -293,7 +294,22 @@ class MainActivity : ComponentActivity() {
                                                                 val list = mutableListOf<com.example.chatterapp.data.ChatMessage>()
                                                                 for (i in 0 until jsonArray.length()) {
                                                                     val obj = jsonArray.getJSONObject(i)
-                                                                    list.add(com.example.chatterapp.data.ChatMessage(obj.getString("username"), obj.getString("message"), obj.getString("sent_at")))
+
+                                                                    // Čitamo i viđeno listu da seen ne nestane pri brzom osvežavanju
+                                                                    val seenArray = obj.optJSONArray("seen_by")
+                                                                    val seenList = mutableListOf<String>()
+                                                                    if (seenArray != null) {
+                                                                        for (j in 0 until seenArray.length()) { seenList.add(seenArray.getString(j)) }
+                                                                    }
+
+                                                                    list.add(
+                                                                        com.example.chatterapp.data.ChatMessage(
+                                                                            username = obj.getString("username"),
+                                                                            message = obj.getString("message"),
+                                                                            date = obj.getString("sent_at"),
+                                                                            seenBy = seenList
+                                                                        )
+                                                                    )
                                                                 }
                                                                 messagesList = list
                                                                 listState.animateScrollToItem(messagesList.size)
