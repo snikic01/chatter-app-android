@@ -344,19 +344,30 @@ class MainActivity : ComponentActivity() {
                                                         activeGroupId = idSign
                                                         messagesList = emptyList()
 
-                                                        // Odmah šaljemo seen status na server da označi poruke kao viđene
-                                                        withContext(Dispatchers.IO) {
-                                                            try {
-                                                                val seenUrl = "https://nikiclab01.tailfd4e2c.ts.net/php/chatter-app-3.0/api_seen.php"
-                                                                val jsonBody = JSONObject().apply {
-                                                                    put("action", "mark")
-                                                                    put("username", currentUsername.value)
-                                                                    put("group_id", idSign)
-                                                                }.toString()
-                                                                client.post(seenUrl) { contentType(ContentType.Application.Json); setBody(jsonBody) }
-                                                            } catch (e: Exception) { }
+                                                        // POPRAVLJENO: Šaljemo ispravan JSON format ka api_seen.php
+                                                        coroutineScope.launch {
+                                                            withContext(Dispatchers.IO) {
+                                                                try {
+                                                                    val baseUrl = "https://nikiclab01.tailfd4e2c.ts.net/php/chatter-app-3.0/api_seen.php"
+                                                                    val seenUrl = baseUrl + "api_seen.php"
+
+                                                                    val jsonBody = JSONObject().apply {
+                                                                        put("action", "mark")
+                                                                        put("username", currentUsername.value)
+                                                                        put("group_id", idSign)
+                                                                    }.toString()
+
+                                                                    client.post(seenUrl) {
+                                                                        contentType(ContentType.Application.Json)
+                                                                        setBody(jsonBody)
+                                                                    }
+                                                                } catch (e: Exception) {
+                                                                    Log.e("ChatterSeen", "Greška pri slanju seen statusa: ${e.message}")
+                                                                }
+                                                            }
                                                         }
                                                     }
+
                                                 }
                                             },
                                             groupsList = groupsList
