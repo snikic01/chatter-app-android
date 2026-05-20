@@ -26,9 +26,11 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-// UVOZIMO SAMO FAJLOVE KOJI SIGURNO POSTOJE U TVOM REPOZITORIJUMU
+// Uvozi tvoja dva ekrana i nove klase iz data foldera
 import com.example.chatterapp.screens.DashboardScreen
 import com.example.chatterapp.screens.GroupsScreen
+import com.example.chatterapp.data.SessionManager
+import com.example.chatterapp.data.AuthViewModel
 
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.android.Android
@@ -75,9 +77,25 @@ class MainActivity : ComponentActivity() {
     @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // Inicijalizujemo SessionManager i AuthViewModel
+        val sessionManager = SessionManager(applicationContext)
+        val authViewModel = AuthViewModel(sessionManager)
+
         setContent {
             MaterialTheme {
-                var currentScreen by remember { mutableStateOf(Screen.LOGIN) }
+                // Ako menadžer kaže da imamo sačuvan token/korisnika, preskačemo Login ekran automatski
+                var currentScreen by remember {
+                    mutableStateOf(if (sessionManager.isLoggedIn()) Screen.CHAT else Screen.LOGIN)
+                }
+
+                // Ako je korisnik već ulogovan, povlačimo njegovo sačuvano ime u stanje aplikacije
+                LaunchedEffect(Unit) {
+                    if (sessionManager.isLoggedIn()) {
+                        currentUsername.value = sessionManager.getSavedUsername() ?: ""
+                    }
+                }
+
                 var currentTab by remember { mutableStateOf(Tab.DASHBOARD) }
                 var messagesList by remember { mutableStateOf(listOf<ChatMessage>()) }
                 var textInput by remember { mutableStateOf("") }
@@ -109,6 +127,8 @@ class MainActivity : ComponentActivity() {
                                 authErrorMessage = "Provera..."
                                 coroutineScope.launch {
                                     if (handleAuth(user, pass, "login")) {
+                                        // Uspešan login: pamtimo sesiju lokalno
+                                        sessionManager.saveSession(user, "generisani_token_ili_id")
                                         currentUsername.value = user
                                         authErrorMessage = null
                                         currentScreen = Screen.CHAT
@@ -132,6 +152,8 @@ class MainActivity : ComponentActivity() {
                                 authErrorMessage = "Registracija..."
                                 coroutineScope.launch {
                                     if (handleAuth(user, pass, "register")) {
+                                        // Uspešna registracija: pamtimo sesiju lokalno
+                                        sessionManager.saveSession(user, "generisani_token_ili_id")
                                         currentUsername.value = user
                                         authErrorMessage = null
                                         currentScreen = Screen.CHAT
@@ -164,8 +186,8 @@ class MainActivity : ComponentActivity() {
                                         onClick = { currentTab = Tab.GROUPS }
                                     )
                                     NavigationBarItem(
-                                        icon = { Icon(Icons.Default.MailOutline, contentDescription = "Privatno") },
-                                        label = { Text("Privatno") },
+                                        icon = { Icon(Icons.Default.MailOutline, contentDescription = "Poruke") },
+                                        label = { Text("Poruke") },
                                         selected = currentTab == Tab.PRIVATE,
                                         onClick = { currentTab = Tab.PRIVATE }
                                     )
@@ -181,70 +203,46 @@ class MainActivity : ComponentActivity() {
                             Box(modifier = Modifier.padding(paddingValues)) {
                                 when (currentTab) {
                                     Tab.DASHBOARD -> {
+                                        // Prosleđujemo authViewModel i akciju za logout
                                         DashboardScreen(
-                                            username = currentUsername.value,
-                                            onNavigateToGroups = { currentTab = Tab.GROUPS }
+                                            authViewModel = authViewModel,
+                                            onLogoutSuccess = {
+                                                currentUsername.value = ""
+                                                currentScreen = Screen.LOGIN
+                                            }
                                         )
                                     }
                                     Tab.GROUPS -> {
-                                        Column(modifier = Modifier.fillMaxSize()) {
-                                            Box(modifier = Modifier.weight(0.35f)) {
-                                                GroupsScreen(onGroupSelect = { groupId -> activeGroupId = groupId })
-                                            }
-                                            Column(modifier = Modifier.weight(0.65f).background(Color(0xFFF5F5F5))) {
-                                                TopAppBar(
-                                                    title = { Text("Grupa ID: $activeGroupId", fontSize = 14.sp, fontWeight = FontWeight.Bold) },
-                                                    colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
-                                                )
-                                                LazyColumn(
-                                                    state = listState,
-                                                    modifier = Modifier.weight(1f).fillMaxWidth(),
-                                                    contentPadding = PaddingValues(12.dp),
-                                                    verticalArrangement = Arrangement.spacedBy(6.dp)
-                                                ) {
-                                                    items(messagesList) { msg ->
-                                                        ChatBubble(msg, isCurrentUser = msg.username == currentUsername.value)
-                                                    }
-                                                }
-                                                Surface(modifier = Modifier.fillMaxWidth(), tonalElevation = 4.dp) {
-                                                    Row(
-                                                        modifier = Modifier.padding(8.dp).navigationBarsPadding().imePadding(),
-                                                        verticalAlignment = Alignment.CenterVertically
-                                                    ) {
-                                                        TextField(
-                                                            value = textInput,
-                                                            onValueChange = { textInput = it },
-                                                            placeholder = { Text("Ukucaj poruku...") },
-                                                            modifier = Modifier.weight(1f),
-                                                            colors = TextFieldDefaults.colors(focusedContainerColor = Color.Transparent, unfocusedContainerColor = Color.Transparent)
-                                                        )
-                                                        Spacer(modifier = Modifier.width(6.dp))
-                                                        IconButton(
-                                                            onClick = {
-                                                                if (textInput.isNotBlank()) {
-                                                                    val messageToSend = textInput
-                                                                    textInput = ""
-                                                                    coroutineScope.launch {
-                                                                        sendMessageToServer(currentUsername.value, messageToSend)
-                                                                    }
-                                                                }
+                                        GroupsScreen(
+                                            messagesList = messagesList,
+                                            textInput = textInput,
+                                            onTextInputChange = { textInput = it },
+                                            onSendMessageClick = {
+                                                if (textInput.isNotBlank()) {
+                                                    coroutineScope.launch {
+                                                        val success = sendChatMessage(currentUsername.value, textInput, activeGroupId)
+                                                        if (success) {
+                                                            textInput = ""
+                                                            val updated = fetchChatMessages()
+                                                            if (updated != null) {
+                                                                messagesList = updated
+                                                                listState.animateScrollToItem(messagesList.size)
                                                             }
-                                                        ) {
-                                                            Icon(imageVector = Icons.AutoMirrored.Filled.Send, contentDescription = "Pošalji", tint = MaterialTheme.colorScheme.primary)
                                                         }
                                                     }
                                                 }
-                                            }
-                                        }
+                                            },
+                                            listState = listState
+                                        )
                                     }
                                     Tab.PRIVATE -> {
-                                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                            Text("✉️ Privatne poruke 1-na-1 (Uskoro)", fontSize = 15.sp, color = Color.Gray)
+                                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                            Text("Privatne Poruke (U izradi)")
                                         }
                                     }
                                     Tab.FRIENDS -> {
-                                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                            Text("👥 Lista prijatelja sa weba (Uskoro)", fontSize = 15.sp, color = Color.Gray)
+                                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                            Text("Prijatelji (U izradi)")
                                         }
                                     }
                                 }
@@ -256,111 +254,150 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private suspend fun handleAuth(username: String, pass: String, actionType: String): Boolean {
-        val url = "https://nikiclab01.tailfd4e2c.ts.net/php/chatter-app-3.0/api_auth.php"
-        return try {
-            val rawJson = JSONObject().apply {
-                put("action", actionType)
-                put("username", username)
-                put("password", pass)
-            }.toString()
+    // Pomoćna funkcija za autentifikaciju preko PHP backend-a
+    private suspend fun handleAuth(user: String, pass: String, type: String): Boolean {
+        return withContext(Dispatchers.IO) {
+            try {
+                val url = "https://nikiclab01.tailfd4e2c.ts.net/php/chatter-app-3.0/api_auth.php"
+                val jsonBody = JSONObject().apply {
+                    put("action", type)
+                    put("username", user)
+                    put("password", pass)
+                }.toString()
 
-            val responseText = withContext(Dispatchers.IO) {
                 val response: HttpResponse = client.post(url) {
                     contentType(ContentType.Application.Json)
-                    setBody(rawJson)
+                    setBody(jsonBody)
                 }
-                response.bodyAsText()
-            }
 
-            Log.d("ChatterAppAI", "Auth odgovor sa servera: $responseText")
-            JSONObject(responseText).getString("status") == "success"
-        } catch (e: Exception) {
-            Log.e("ChatterAppAI", "Auth mrežna greška: ${e.localizedMessage}")
-            false
+                val responseText = response.bodyAsText()
+                Log.d("ChatterAuth", "Response: $responseText")
+
+                val jsonResponse = JSONObject(responseText)
+                jsonResponse.optBoolean("success", false)
+            } catch (e: Exception) {
+                Log.e("ChatterAuth", "Error: ${e.message}")
+                false
+            }
         }
     }
 
+    // Pomoćna funkcija za povlačenje poruka iz grupe
     private suspend fun fetchChatMessages(): List<ChatMessage>? {
-        val url = "https://nikiclab01.tailfd4e2c.ts.net/php/chatter-app-3.0/api_chat.php"
-        return try {
-            val response: HttpResponse = withContext(Dispatchers.IO) { client.get(url) }
-            val jsonObject = JSONObject(response.bodyAsText())
-            if (jsonObject.getString("status") == "success") {
-                val jsonArray = jsonObject.getJSONArray("messages")
-                val parsed = mutableListOf<ChatMessage>()
-                for (i in 0 until jsonArray.length()) {
-                    val item = jsonArray.getJSONObject(i)
-                    parsed.add(ChatMessage(item.getString("username"), item.getString("message"), item.getString("date")))
-                }
-                parsed
-            } else null
-        } catch (e: Exception) {
-            null
+        return withContext(Dispatchers.IO) {
+            try {
+                val url = "https://nikiclab01.tailfd4e2c.ts.net/php/chatter-app-3.0/api_chat.php"
+                val response: HttpResponse = client.get(url)
+                val responseText = response.bodyAsText()
+
+                val jsonResponse = JSONObject(responseText)
+                if (jsonResponse.optBoolean("success", false)) {
+                    val jsonArray = jsonResponse.getJSONArray("messages")
+                    val list = mutableListOf<ChatMessage>()
+                    for (i in 0 until jsonArray.length()) {
+                        val obj = jsonArray.getJSONObject(i)
+                        list.add(
+                            ChatMessage(
+                                username = obj.getString("username"),
+                                message = obj.getString("message"),
+                                date = obj.optString("sent_at", "")
+                            )
+                        )
+                    }
+                    list
+                } else null
+            } catch (e: Exception) {
+                Log.e("ChatterChat", "Fetch error: ${e.message}")
+                null
+            }
         }
     }
 
-    private suspend fun sendMessageToServer(username: String, message: String): Boolean {
-        val url = "https://nikiclab01.tailfd4e2c.ts.net/php/chatter-app-3.0/api_send.php"
-        return try {
-            val rawJson = JSONObject().apply {
-                put("username", username)
-                put("message", message)
-            }.toString()
+    // Pomoćna funkcija za slanje poruke na backend
+    private suspend fun sendChatMessage(user: String, msg: String, groupId: Int): Boolean {
+        return withContext(Dispatchers.IO) {
+            try {
+                val url = "https://nikiclab01.tailfd4e2c.ts.net/php/chatter-app-3.0/api_send.php"
+                val jsonBody = JSONObject().apply {
+                    put("group_id", groupId)
+                    put("username", user)
+                    put("message", msg)
+                }.toString()
 
-            val response: HttpResponse = withContext(Dispatchers.IO) {
-                client.post(url) {
+                val response: HttpResponse = client.post(url) {
                     contentType(ContentType.Application.Json)
-                    setBody(rawJson)
+                    setBody(jsonBody)
                 }
+
+                val jsonResponse = JSONObject(response.bodyAsText())
+                jsonResponse.optBoolean("success", false)
+            } catch (e: Exception) {
+                Log.e("ChatterChat", "Send error: ${e.message}")
+                false
             }
-            JSONObject(response.bodyAsText()).getString("status") == "success"
-        } catch (e: Exception) {
-            false
-        }
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        client.close()
-    }
-}
-
-@Composable
-fun AuthScreen(isLogin: Boolean, errorMessage: String?, onActionClick: (String, String) -> Unit, onSwitchScreen: () -> Unit) {
-    var usernameInput by remember { mutableStateOf("") }
-    var passwordInput by remember { mutableStateOf("") }
-
-    Box(modifier = Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
-        Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            Text(text = if (isLogin) "Dobrodošao nazad" else "Napravi nalog", fontSize = 28.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-            errorMessage?.let { Text(text = it, color = if (it.contains("...")) Color.Gray else Color.Red, fontSize = 14.sp) }
-            OutlinedTextField(value = usernameInput, onValueChange = { usernameInput = it }, label = { Text("Korisničko ime") }, modifier = Modifier.fillMaxWidth())
-            OutlinedTextField(value = passwordInput, onValueChange = { passwordInput = it }, label = { Text("Lozinka") }, visualTransformation = PasswordVisualTransformation(), modifier = Modifier.fillMaxWidth())
-            Button(onClick = { if (usernameInput.isNotBlank() && passwordInput.isNotBlank()) onActionClick(usernameInput, passwordInput) }, modifier = Modifier.fillMaxWidth().height(50.dp)) {
-                Text(text = if (isLogin) "Prijavi se" else "Registruj se", fontSize = 16.sp)
-            }
-            TextButton(onClick = onSwitchScreen) { Text(text = if (isLogin) "Nemaš nalog? Registruj se" else "Već imaš nalog? Prijavi se") }
         }
     }
 }
 
+// Jednostavan zajednički Composable za Login i Register ekrane
 @Composable
-fun ChatBubble(msg: ChatMessage, isCurrentUser: Boolean) {
-    val alignment = if (isCurrentUser) Alignment.End else Alignment.Start
-    val bubbleColor = if (isCurrentUser) MaterialTheme.colorScheme.primaryContainer else Color.White
-    val textColor = if (isCurrentUser) MaterialTheme.colorScheme.onPrimaryContainer else Color.Black
+fun AuthScreen(
+    isLogin: Boolean,
+    errorMessage: String?,
+    onActionClick: (String, String) -> Unit,
+    onSwitchScreen: () -> Unit
+) {
+    var username by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
 
-    Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = alignment) {
-        if (!isCurrentUser) {
-            Text(text = msg.username, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.Gray, modifier = Modifier.padding(start = 4.dp, bottom = 2.dp))
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = if (isLogin) "Prijavi se na Chatter" else "Kreiraj Chatter nalog",
+            fontSize = 24.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(bottom = 16.dp)
+        )
+
+        OutlinedTextField(
+            value = username,
+            onValueChange = { username = it },
+            label = { Text("Korisničko ime") },
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        OutlinedTextField(
+            value = password,
+            onValueChange = { password = it },
+            label = { Text("Lozinka") },
+            visualTransformation = PasswordVisualTransformation(),
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        errorMessage?.let {
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(text = it, color = Color.Red, fontSize = 14.sp)
         }
-        Box(modifier = Modifier.background(bubbleColor, shape = RoundedCornerShape(12.dp)).padding(12.dp).widthIn(max = 280.dp)) {
-            Column {
-                Text(text = msg.message, fontSize = 15.sp, color = textColor)
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(text = if (msg.date.contains(" ")) msg.date.substringAfter(" ") else msg.date, fontSize = 9.sp, color = Color.Gray, modifier = Modifier.align(Alignment.End))
-            }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Button(
+            onClick = { onActionClick(username, password) },
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(8.dp)
+        ) {
+            Text(if (isLogin) "Prijavi se" else "Registruj se")
+        }
+
+        TextButton(onClick = onSwitchScreen) {
+            Text(if (isLogin) "Nemaš nalog? Registruj se" else "Već imaš nalog? Prijavi se")
         }
     }
 }
