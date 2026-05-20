@@ -13,6 +13,7 @@ import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -23,7 +24,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.chatterapp.data.ChatMessage
 
-// Proširujemo tvoj lokalni model da aplikacija zna ko je vlasnik (za brisanje)
 data class AndroidChatGroup(val id: Int, val name: String, val isOwner: Boolean = false)
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -39,8 +39,11 @@ fun GroupsScreen(
     onGroupChange: (Int) -> Unit,
     groupsList: List<AndroidChatGroup>
 ) {
-    // Lokalna stanja za dijalog članova (da ne opterećujemo MainActivity)
     var showMembersDialog by remember { mutableStateOf(false) }
+    var showMenu by remember { mutableStateOf(false) }
+
+    val currentGroup = groupsList.find { it.id == activeGroupId }
+    val isOwnerOfCurrentGroup = currentGroup?.isOwner ?: false
 
     if (activeGroupId == 0) {
         // --- 1. PRIKAZ LISTE SVIH DOSTUPNIH GRUPA ---
@@ -70,31 +73,21 @@ fun GroupsScreen(
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Column {
-                                Text(
-                                    text = group.name,
-                                    fontSize = 18.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF2196F3)
-                                )
-                                Text(
-                                    text = if (group.isOwner) "Ti si vlasnik (Možeš obrisati)" else "Član si grupe (Možeš napustiti)",
-                                    fontSize = 12.sp,
-                                    color = Color.Gray
-                                )
+                                Text(text = group.name, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF2196F3))
+                                Text(text = if (group.isOwner) "Ti si vlasnik" else "Član si grupe", fontSize = 12.sp, color = Color.Gray)
                             }
 
-                            // Dugmici sa akcijama (Okidaju promenu grupe sa negativnim ID-jem koji MainActivity prepoznaje)
                             IconButton(onClick = {
                                 if (group.isOwner) {
-                                    onGroupChange(-group.id) // Negativan ID signalizira brisanje u MainActivity
+                                    onGroupChange(-group.id)
                                 } else {
-                                    onGroupChange(-group.id * 100) // Ekstreman negativan ID signalizira napuštanje
+                                    onGroupChange(-group.id * 100)
                                 }
                             }) {
                                 Icon(
                                     imageVector = if (group.isOwner) Icons.Default.Delete else Icons.Default.ExitToApp,
-                                    contentDescription = "Akcija",
-                                    tint = Color.Red
+                                    contentDescription = "Brza akcija",
+                                    tint = Color.LightGray
                                 )
                             }
                         }
@@ -103,7 +96,7 @@ fun GroupsScreen(
             }
         }
     } else {
-        // --- 2. PRIKAZ ČETA ZA SELEKTOVANU GRUPU ---
+        // --- 2. PRIKAZ ČETA UNUTAR SELEKTOVANE GRUPE ---
         Column(modifier = Modifier.fillMaxSize().background(Color(0xFFF5F5F5))) {
             Row(
                 modifier = Modifier
@@ -118,14 +111,44 @@ fun GroupsScreen(
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Nazad", tint = Color.White)
                     }
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text(text = "Grupa ID: $activeGroupId", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                    Text(text = currentGroup?.name ?: "Grupa ID: $activeGroupId", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
                 }
 
-                // Dugme za otvaranje članova (Pali lokalni dijalog)
-                TextButton(onClick = { showMembersDialog = true }) {
-                    Icon(Icons.Default.Info, contentDescription = "Članovi", tint = Color.White)
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("Članovi", color = Color.White, fontWeight = FontWeight.Bold)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = { showMembersDialog = true }) {
+                        Icon(Icons.Default.Info, contentDescription = "Članovi", tint = Color.White)
+                    }
+
+                    Box {
+                        IconButton(onClick = { showMenu = true }) {
+                            Icon(Icons.Default.MoreVert, contentDescription = "Opcije", tint = Color.White)
+                        }
+                        DropdownMenu(
+                            expanded = showMenu,
+                            onDismissRequest = { showMenu = false },
+                            modifier = Modifier.background(Color.White)
+                        ) {
+                            if (isOwnerOfCurrentGroup) {
+                                DropdownMenuItem(
+                                    text = { Text("Obriši grupu", color = Color.Red, fontWeight = FontWeight.Bold) },
+                                    leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null, tint = Color.Red) },
+                                    onClick = {
+                                        showMenu = false
+                                        onGroupChange(-activeGroupId)
+                                    }
+                                )
+                            } else {
+                                DropdownMenuItem(
+                                    text = { Text("Napusti grupu", color = Color.DarkGray) },
+                                    leadingIcon = { Icon(Icons.Default.ExitToApp, contentDescription = null, tint = Color.DarkGray) },
+                                    onClick = {
+                                        showMenu = false
+                                        onGroupChange(-activeGroupId * 100)
+                                    }
+                                )
+                            }
+                        }
+                    }
                 }
             }
 
@@ -150,14 +173,21 @@ fun GroupsScreen(
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(text = msg.message, color = if (isMyMessage) Color.White else Color.Black, fontSize = 15.sp)
 
+                                // --- INTEGRISAN SEEN STATUS DIREKTNO UNUTAR BALONČIĆA PORUKE ---
                                 if (msg.seenBy.isNotEmpty()) {
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    Text(
-                                        text = "✓ Viđeno: ${msg.seenBy.joinToString(", ")}",
-                                        fontSize = 11.sp,
-                                        color = if (isMyMessage) Color(0xFFE0E0E0) else Color.Gray,
-                                        modifier = Modifier.align(Alignment.End)
-                                    )
+                                    Spacer(modifier = Modifier.height(6.dp))
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.End,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = "✓ Viđeno: ${msg.seenBy.joinToString(", ")}",
+                                            fontSize = 11.sp,
+                                            color = if (isMyMessage) Color(0xFFD1E8FF) else Color(0xFF757575),
+                                            fontWeight = FontWeight.Medium
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -166,7 +196,7 @@ fun GroupsScreen(
             }
 
             Row(modifier = Modifier.fillMaxWidth().background(Color.White).padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                OutlinedTextField(value = textInput, onValueChange = onTextInputChange, modifier = Modifier.weight(1f).padding(end = 8.dp), shape = RoundedCornerShape(24.dp))
+                OutlinedTextField(value = textInput, onValueChange = onTextInputChange, placeholder = { Text("Upiši poruku...") }, modifier = Modifier.weight(1f).padding(end = 8.dp), shape = RoundedCornerShape(24.dp))
                 IconButton(onClick = onSendMessageClick, enabled = textInput.isNotBlank()) {
                     Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Pošalji", tint = Color(0xFF2196F3))
                 }
@@ -174,7 +204,6 @@ fun GroupsScreen(
         }
     }
 
-    // --- DIJALOG KOJI PRIKAZUJE KO JE SVE U OVOJ GRUPI ---
     if (showMembersDialog) {
         AlertDialog(
             onDismissRequest = { showMembersDialog = false },
@@ -184,7 +213,6 @@ fun GroupsScreen(
                     Text("Korisnici sa sajta koji su u ovom četu:", color = Color.Gray, fontSize = 14.sp)
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    // Koristićemo autore trenutnih poruka da rekonstruišemo listu članova na ekranu
                     val uniqueMembers = messagesList.map { it.username }.distinct()
 
                     LazyColumn(verticalArrangement = Arrangement.spacedBy(6.dp)) {
