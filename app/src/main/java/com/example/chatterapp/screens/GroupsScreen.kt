@@ -20,6 +20,7 @@ import com.example.chatterapp.ChatMessage
 
 @Composable
 fun GroupsScreen(
+    currentUsername: String, // Dodajemo parametar da znamo ko je ulogovan
     messagesList: List<ChatMessage>,
     textInput: String,
     onTextInputChange: (String) -> Unit,
@@ -47,7 +48,7 @@ fun GroupsScreen(
             )
         }
 
-        // Lista poruka koja se automatski osvežava preko Polling-a
+        // Lista poruka sa Chat Bubbles logikom
         LazyColumn(
             state = listState,
             modifier = Modifier
@@ -57,36 +58,50 @@ fun GroupsScreen(
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             items(messagesList) { msg ->
-                Card(
-                    colors = CardDefaults.cardColors(
-                        containerColor = Color.White
-                    ),
-                    shape = RoundedCornerShape(8.dp),
-                    modifier = Modifier.fillMaxWidth()
+                // Provera da li je poruka tvoja
+                val isMyMessage = msg.username.trim().lowercase() == currentUsername.trim().lowercase()
+
+                // Poravnanje: desno za tebe, levo za druge
+                Box(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentAlignment = if (isMyMessage) Alignment.CenterEnd else Alignment.CenterStart
                 ) {
-                    Column(modifier = Modifier.padding(12.dp)) {
-                        Row(
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
+                    Card(
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (isMyMessage) Color(0xFF2196F3) else Color.White
+                        ),
+                        shape = RoundedCornerShape(
+                            topStart = 12.dp,
+                            topEnd = 12.dp,
+                            bottomStart = if (isMyMessage) 12.dp else 0.dp,
+                            bottomEnd = if (isMyMessage) 0.dp else 12.dp
+                        ),
+                        modifier = Modifier.fillMaxWidth(0.75f) // Ograničavamo širinu oblačića na 75% ekrana
+                    ) {
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Row(
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(
+                                    text = if (isMyMessage) "Ti" else msg.username,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (isMyMessage) Color.White else Color(0xFF2196F3),
+                                    fontSize = 13.sp
+                                )
+                                Text(
+                                    text = msg.date,
+                                    color = if (isMyMessage) Color(0xFFE0E0E0) else Color.Gray,
+                                    fontSize = 10.sp
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(4.dp))
                             Text(
-                                text = msg.username,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFF2196F3),
-                                fontSize = 14.sp
-                            )
-                            Text(
-                                text = msg.date,
-                                color = Color.Gray,
-                                fontSize = 11.sp
+                                text = msg.message,
+                                color = if (isMyMessage) Color.White else Color.Black,
+                                fontSize = 15.sp
                             )
                         }
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = msg.message,
-                            color = Color.Black,
-                            fontSize = 15.sp
-                        )
                     }
                 }
             }
