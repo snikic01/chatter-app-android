@@ -322,7 +322,7 @@ class MainActivity : ComponentActivity() {
                                             activeGroupId = activeGroupId,
                                             onGroupChange = { idSign ->
                                                 coroutineScope.launch {
-                                                    // 1. Čista, spojena HTTP putanja na portu 8080 bez dupliranja fajlova
+                                                    // Čista, spojena HTTP putanja na portu 8080 bez dupliranja fajlova
                                                     val baseUrl = "http://" + "nikiclab01.tailfd4e2c.ts.net:8080/chatter-app-3.0/"
 
                                                     if (idSign == 0) {
@@ -337,11 +337,12 @@ class MainActivity : ComponentActivity() {
                                                         withContext(Dispatchers.IO) {
                                                             try {
                                                                 if (actualGroupId >= 100) {
-                                                                    // Korisnik napušta grupu
+                                                                    // KORISNIK NAPUŠTA GRUPU (Deli se sa 100 da se dobije realan ID)
                                                                     val realId = actualGroupId / 100
                                                                     val jsonBody = JSONObject().apply {
                                                                         put("action", "leave")
                                                                         put("group_id", realId)
+                                                                        // POTPUNO DINAMIČKI: Šaljemo trenutno ime, server sam nalazi ID u bazi!
                                                                         put("username", currentUsername.value)
                                                                     }.toString()
 
@@ -350,10 +351,11 @@ class MainActivity : ComponentActivity() {
                                                                         setBody(jsonBody)
                                                                     }
                                                                 } else {
-                                                                    // Vlasnik briše celu grupu trajno iz baze
+                                                                    // VLASNIK BRIŠE CELU GRUPU TRAJNO IZ BAZE
                                                                     val jsonBody = JSONObject().apply {
                                                                         put("action", "delete")
                                                                         put("group_id", actualGroupId)
+                                                                        // POTPUNO DINAMIČKI: Šaljemo trenutno ime, server sam nalazi ID u bazi!
                                                                         put("username", currentUsername.value)
                                                                     }.toString()
 
@@ -364,19 +366,20 @@ class MainActivity : ComponentActivity() {
                                                                 }
                                                             } catch (e: Exception) { }
                                                         }
-                                                        activeGroupId = 0 // Osvežava ekran i vraća na listu grupa
+                                                        activeGroupId = 0 // Osvežava ekran i vraća na listu grupa koja će sada biti očišćena!
                                                     } else {
-                                                        // 2. KORISNIK OTVARA OBIČAN ČET GRUPE (ID je pozitivan, npr. 8 ili 19)
+                                                        // KORISNIK OTVARA OBIČAN ČET GRUPE (ID je pozitivan, npr. 8 ili 19)
                                                         activeGroupId = idSign
                                                         messagesList = emptyList()
 
-                                                        // ŠALJEMO ISPRAVAN SEEN STATUS PREKO NUMERIČKOG ID-JA 5 DA BI UKLONIO KRUŽIĆ
+                                                        // ŠALJEMO ISPRAVAN SEEN STATUS PREKO DINAMIČKOG IMENA KORISNIKA
                                                         withContext(Dispatchers.IO) {
                                                             try {
                                                                 val seenUrl = baseUrl + "api_seen.php"
                                                                 val jsonBody = JSONObject().apply {
                                                                     put("action", "mark")
-                                                                    put("user_id", 5) // PROMENJENO: Šaljemo direktno tvoj ispravan ID iz MariaDB baze!
+                                                                    // POTPUNO DINAMIČKI: Šaljemo trenutno ime ulogovanog korisnika
+                                                                    put("username", currentUsername.value)
                                                                     put("group_id", idSign)
                                                                 }.toString()
 
@@ -390,8 +393,7 @@ class MainActivity : ComponentActivity() {
                                                         }
                                                     }
                                                 }
-                                            }
-                                            ,
+                                            },
                                             groupsList = groupsList
                                         )
                                     }
