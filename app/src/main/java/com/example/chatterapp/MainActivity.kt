@@ -301,7 +301,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private suspend fun sendMessageToServer(username: String, message: String): Boolean {
-        val url = "hhttps://nikiclab01.tailfd4e2c.ts.net/php/chatter-app-3.0/api_send.php"
+        val url = "https://nikiclab01.tailfd4e2c.ts.net/php/chatter-app-3.0/api_send.php"
         return try {
             val rawJson = JSONObject().apply {
                 put("username", username)
