@@ -106,17 +106,28 @@ class MainActivity : ComponentActivity() {
                 val listState = rememberLazyListState()
 
                 // Polling za automatsko osvežavanje poruka na svake 3 sekunde
+                // Polling za automatsko osvežavanje poruka osiguran od pucanja
                 LaunchedEffect(currentScreen, currentTab) {
                     if (currentScreen == Screen.CHAT && currentTab == Tab.GROUPS) {
                         while (true) {
-                            val fetched = fetchChatMessages()
-                            if (fetched != null) {
-                                messagesList = fetched
+                            try {
+                                // Pokrećemo mrežni zahtev unutar try-catch bloka
+                                val fetched = fetchChatMessages()
+                                if (fetched != null) {
+                                    messagesList = fetched
+                                } else {
+                                    Log.w("ChatterPolling", "Server je vratio prazan ili nevažeći odgovor.")
+                                }
+                            } catch (e: Exception) {
+                                // Ako mreža pukne ili server vrati loš format, petlja se NE prekida
+                                Log.e("ChatterPolling", "Greška u polling petlji: ${e.message}")
                             }
+                            // Obavezna pauza od 3 sekunde pre sledećeg zahteva, bez obzira na ishod
                             kotlinx.coroutines.delay(3000)
                         }
                     }
                 }
+
 
                 when (currentScreen) {
                     Screen.LOGIN -> {
@@ -258,7 +269,7 @@ class MainActivity : ComponentActivity() {
     private suspend fun handleAuth(user: String, pass: String, type: String): Boolean {
         return withContext(Dispatchers.IO) {
             try {
-                val url = "https://nikiclab01.tailfd4e2c.ts.net/chatter-app-3.0/api_auth.php"
+                val url = "https://nikiclab01.tailfd4e2c.ts.net/php/chatter-app-3.0/api_auth.php"
                 val jsonBody = JSONObject().apply {
                     put("action", type)
                     put("username", user)
@@ -287,7 +298,7 @@ class MainActivity : ComponentActivity() {
         return withContext(Dispatchers.IO) {
             try {
                 // PROMENJENO: putanja sada gadja tvoj ispravan api_chat.php fajl
-                val url = "https://nikiclab01.tailfd4e2c.ts.net/chatter-app-3.0/api_chat.php"
+                val url = "https://nikiclab01.tailfd4e2c.ts.net/php/chatter-app-3.0/api_chat.php"
                 val response: HttpResponse = client.get(url)
                 val responseText = response.bodyAsText()
 
@@ -321,7 +332,7 @@ class MainActivity : ComponentActivity() {
         return withContext(Dispatchers.IO) {
             try {
                 // PROMENJENO: putanja sada gadja tvoj ispravan api_send.php fajl
-                val url = "https://nikiclab01.tailfd4e2c.ts.net/chatter-app-3.0/api_send.php"
+                val url = "https://nikiclab01.tailfd4e2c.ts.net/php/chatter-app-3.0/api_send.php"
                 val jsonBody = JSONObject().apply {
                     put("group_id", groupId)
                     put("username", user)
