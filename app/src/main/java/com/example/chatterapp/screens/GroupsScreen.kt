@@ -1,25 +1,133 @@
 package com.example.chatterapp.screens
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.material3.Text
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.chatterapp.ChatMessage
 
 @Composable
-fun GroupsScreen(onGroupSelect: (Int) -> Unit) {
-    Box(
+fun GroupsScreen(
+    messagesList: List<ChatMessage>,
+    textInput: String,
+    onTextInputChange: (String) -> Unit,
+    onSendMessageClick: () -> Unit,
+    listState: LazyListState
+) {
+    Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.White)
-            .clickable { onGroupSelect(8) }, // Klik automatski bira grupu 8
-        contentAlignment = Alignment.Center
+            .background(Color(0xFFF5F5F5))
     ) {
-        Text("Klikni ovde da učitaš grupu: KontraverzniBiznismeni", fontSize = 16.sp, color = Color.Black)
+        // Gornji info bar za aktivnu grupu
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(Color(0xFF2196F3))
+                .padding(16.dp),
+            contentAlignment = Alignment.CenterStart
+        ) {
+            Text(
+                text = "Grupa: KontraverzniBiznismeni (ID: 8)",
+                color = Color.White,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold
+            )
+        }
+
+        // Lista poruka koja se automatski osvežava preko Polling-a
+        LazyColumn(
+            state = listState,
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            items(messagesList) { msg ->
+                Card(
+                    colors = CardDefaults.cardColors(
+                        containerColor = Color.White
+                    ),
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Row(
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = msg.username,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF2196F3),
+                                fontSize = 14.sp
+                            )
+                            Text(
+                                text = msg.date,
+                                color = Color.Gray,
+                                fontSize = 11.sp
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = msg.message,
+                            color = Color.Black,
+                            fontSize = 15.sp
+                        )
+                    }
+                }
+            }
+        }
+
+        // Donji deo ekrana za unos teksta i slanje poruke
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(Color.White)
+                .padding(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            OutlinedTextField(
+                value = textInput,
+                onValueChange = onTextInputChange,
+                placeholder = { Text("Upiši poruku...") },
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(end = 8.dp),
+                maxLines = 3,
+                shape = RoundedCornerShape(24.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = Color(0xFF2196F3),
+                    unfocusedBorderColor = Color.LightGray
+                )
+            )
+
+            IconButton(
+                onClick = onSendMessageClick,
+                enabled = textInput.isNotBlank(),
+                colors = IconButtonDefaults.iconButtonColors(
+                    contentColor = Color(0xFF2196F3),
+                    disabledContentColor = Color.LightGray
+                )
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.Send,
+                    contentDescription = "Pošalji"
+                )
+            }
+        }
     }
 }
