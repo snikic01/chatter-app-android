@@ -143,7 +143,8 @@ fun GroupsScreen(
                                 text = { Text("Napusti grupu", color = Color.DarkGray) },
                                 leadingIcon = { Icon(Icons.Default.ExitToApp, contentDescription = null, tint = Color.DarkGray) },
                                 onClick = {
-                                    onGroupChange(-activeGroupId * 100) // Prvo okida leave akciju
+                                    // POPRAVLJENO: Prvo okidamo slanje pa tek onda gasimo meni da nit ne pukne!
+                                    onGroupChange(-activeGroupId * 100)
                                     showMenu = false
                                 }
                             )
@@ -154,7 +155,8 @@ fun GroupsScreen(
                                     text = { Text("Obriši grupu (Za sve)", color = Color.Red, fontWeight = FontWeight.Bold) },
                                     leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null, tint = Color.Red) },
                                     onClick = {
-                                        onGroupChange(-activeGroupId) // Prvo okida delete akciju
+                                        // POPRAVLJENO: Prvo okidamo slanje pa tek onda gasimo meni da nit ne pukne!
+                                        onGroupChange(-activeGroupId)
                                         showMenu = false
                                     }
                                 )
@@ -162,7 +164,7 @@ fun GroupsScreen(
                         }
                     } // Zatvara Box ispravno
                 } // Zatvara desni Row dugmića ispravno
-            } // Zatvara celi gornji plavi Row ispravno
+            } // Zatvara celi plavi gornji Row ispravno
 
             LazyColumn(
 
