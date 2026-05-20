@@ -116,7 +116,7 @@ class MainActivity : ComponentActivity() {
                                     val savedUser = sessionManager.getSavedUsername() ?: currentUsername.value
 
                                     // SPOJI RAZMACE OKO TAČAKA PRE LEPLJENJA:
-                                    val baseUrl = "https://nikiclab01 . tailfd4e2c . ts . net:8080/chatter-app-3.0/"
+                                    val baseUrl = "https://nikiclab01.tailfd4e2c.ts.net:8080/chatter-app-3.0/"
                                     val url = baseUrl + "api_groups.php?action=list&username=" + savedUser
 
                                     val response = client.get(url)
