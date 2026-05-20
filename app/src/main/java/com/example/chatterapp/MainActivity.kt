@@ -203,7 +203,6 @@ class MainActivity : ComponentActivity() {
                             Box(modifier = Modifier.padding(paddingValues)) {
                                 when (currentTab) {
                                     Tab.DASHBOARD -> {
-                                        // Prosleđujemo authViewModel i akciju za logout
                                         DashboardScreen(
                                             authViewModel = authViewModel,
                                             onLogoutSuccess = {
@@ -213,26 +212,11 @@ class MainActivity : ComponentActivity() {
                                         )
                                     }
                                     Tab.GROUPS -> {
+                                        // Čistimo sve stare parametre i ostavljamo samo ono što tvoj GroupsScreen stvarno traži
                                         GroupsScreen(
-                                            messagesList = messagesList,
-                                            textInput = textInput,
-                                            onTextInputChange = { textInput = it },
-                                            onSendMessageClick = {
-                                                if (textInput.isNotBlank()) {
-                                                    coroutineScope.launch {
-                                                        val success = sendChatMessage(currentUsername.value, textInput, activeGroupId)
-                                                        if (success) {
-                                                            textInput = ""
-                                                            val updated = fetchChatMessages()
-                                                            if (updated != null) {
-                                                                messagesList = updated
-                                                                listState.animateScrollToItem(messagesList.size)
-                                                            }
-                                                        }
-                                                    }
-                                                }
-                                            },
-                                            listState = listState
+                                            onGroupSelect = { groupId ->
+                                                activeGroupId = groupId
+                                            }
                                         )
                                     }
                                     Tab.PRIVATE -> {
