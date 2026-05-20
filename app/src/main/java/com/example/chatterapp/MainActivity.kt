@@ -213,6 +213,7 @@ class MainActivity : ComponentActivity() {
                                     }
                                     Tab.GROUPS -> {
                                         GroupsScreen(
+                                            currentUsername = currentUsername.value, // PROSLEĐUJEMO STRNG OVDE
                                             messagesList = messagesList,
                                             textInput = textInput,
                                             onTextInputChange = { textInput = it },
