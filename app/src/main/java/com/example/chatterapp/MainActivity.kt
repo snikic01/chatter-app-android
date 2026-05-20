@@ -111,12 +111,12 @@ class MainActivity : ComponentActivity() {
                     if (currentScreen == Screen.CHAT && currentTab == Tab.GROUPS) {
                         while (true) {
                             try {
-                                // Koristimo http:// protokol i spajamo string za stabilan mrežni prolaz
-                                val baseUrl = "http://" + "nikiclab01.tailfd4e2c.ts.net:8080/chatter-app-3.0/"
+                                val baseUrl = "http://ts.net"
+                                // Čitamo direktno iz sesije da ime nikada ne ode prazno na server!
                                 val savedUser = sessionManager.getSavedUsername() ?: currentUsername.value
 
                                 if (activeGroupId == 0) {
-                                    // 1. Povlačimo sve postojeće grupe sa servera
+                                    // 1. Povlačimo sve grupe sa servera
                                     val url = baseUrl + "api_groups.php?action=list&username=" + savedUser
                                     val response = client.get(url)
                                     val jsonResponse = JSONObject(response.bodyAsText())
@@ -128,20 +128,22 @@ class MainActivity : ComponentActivity() {
                                         for (i in 0 until array.length()) {
                                             val obj = array.getJSONObject(i)
 
-                                            // POPRAVLJENO: Uklonjen privremeni filter! Sada prihvatamo sve dinamičke grupe koje nam vrati ispravni API sa servera
+                                            // POPRAVLJENO MAPIRANJE VLASNIŠTVA: Čita 1 ili 0 iz MariaDB baze!
+                                            val isOwner = obj.optInt("is_owner", 0) == 1
+
                                             filteredList.add(
                                                 com.example.chatterapp.screens.AndroidChatGroup(
                                                     id = obj.getInt("id"),
                                                     name = obj.getString("name"),
-                                                    isOwner = obj.optBoolean("is_owner", false),
+                                                    isOwner = isOwner,
                                                     unreadCount = obj.optInt("unread_count", 0)
                                                 )
                                             )
                                         }
-                                        groupsList = filteredList // Ekran dobija tvoje grupe instantno!
+                                        groupsList = filteredList
                                     }
                                 } else {
-                                    // 2. Ako je čet otvoren, osvežavamo poruke u realnom vremenu za tu izabranu grupu
+                                    // 2. Ako je čet otvoren, osvežavamo poruke i seen status
                                     val url = baseUrl + "api_chat.php?group_id=" + activeGroupId
                                     val response = client.get(url)
                                     val jsonResponse = JSONObject(response.bodyAsText())
@@ -174,6 +176,7 @@ class MainActivity : ComponentActivity() {
                         }
                     }
                 }
+
 
 
                 when (currentScreen) {
