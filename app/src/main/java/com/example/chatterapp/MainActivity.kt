@@ -451,30 +451,31 @@ class MainActivity : ComponentActivity() {
     private suspend fun sendChatMessage(user: String, msg: String, groupId: Int): Boolean {
         return withContext(Dispatchers.IO) {
             try {
-                // PROMENJENO: putanja sada gadja tvoj ispravan api_send.php fajl
-                val url = "https://nikiclab01.tailfd4e2c.ts.net/php/chatter-app-3.0/api_send.php"
+                val url = "https://ts.net"
+
+                // 1. Pakujemo podatke u čist i pravilan JSON objekat koji server traži
                 val jsonBody = JSONObject().apply {
                     put("group_id", groupId)
                     put("username", user)
                     put("message", msg)
                 }.toString()
 
+                // 2. Šaljemo ga kroz Ktor klijent uz eksplicitno postavljanje Content-Type-a
                 val response: HttpResponse = client.post(url) {
                     contentType(ContentType.Application.Json)
                     setBody(jsonBody)
                 }
 
-                val responseText = response.bodyAsText()
-                if (responseText.isBlank()) return@withContext true
-
-                val jsonResponse = JSONObject(responseText)
-                jsonResponse.optBoolean("success", true) || jsonResponse.optString("status", "") == "success"
+                // 3. Čitamo odgovor sa servera i proveravamo uspeh
+                val jsonResponse = JSONObject(response.bodyAsText())
+                jsonResponse.optBoolean("success", false)
             } catch (e: Exception) {
-                Log.e("ChatterChat", "Send error: ${e.message}")
+                Log.e("ChatterSend", "Greška pri slanju poruke: ${e.message}")
                 false
             }
         }
     }
+
 
 }
 
