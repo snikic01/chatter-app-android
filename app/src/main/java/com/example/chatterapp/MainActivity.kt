@@ -97,35 +97,75 @@ class MainActivity : ComponentActivity() {
 
                 var currentTab by remember { mutableStateOf(Tab.DASHBOARD) }
                 var messagesList by remember { mutableStateOf(listOf<ChatMessage>()) }
+                var groupsList by remember { mutableStateOf(listOf<com.example.chatterapp.screens.AndroidChatGroup>()) }
                 var textInput by remember { mutableStateOf("") }
                 var authErrorMessage by remember { mutableStateOf<String?>(null) }
-                var activeGroupId by remember { mutableStateOf(8) }
+                var activeGroupId by remember { mutableStateOf(0) }
 
                 val coroutineScope = rememberCoroutineScope()
                 val listState = rememberLazyListState()
 
                 // Polling za automatsko osvežavanje poruka na svake 3 sekunde
                 // Polling za automatsko osvežavanje poruka osiguran od pucanja
-                LaunchedEffect(currentScreen, currentTab) {
+                LaunchedEffect(currentScreen, currentTab, activeGroupId) {
                     if (currentScreen == Screen.CHAT && currentTab == Tab.GROUPS) {
                         while (true) {
                             try {
-                                // Pokrećemo mrežni zahtev unutar try-catch bloka
-                                val fetched = fetchChatMessages()
-                                if (fetched != null) {
-                                    messagesList = fetched
+                                if (activeGroupId == 0) {
+                                    // 1. Ako čet nije otvoren, povlačimo listu svih aktivnih grupa iz baze
+                                    val url = "https://ts.net{currentUsername.value}"
+                                    val response = client.get(url)
+                                    val jsonResponse = JSONObject(response.bodyAsText())
+                                    if (jsonResponse.optBoolean("success", false)) {
+                                        val array = jsonResponse.getJSONArray("groups")
+                                        val list = mutableListOf<com.example.chatterapp.screens.AndroidChatGroup>()
+                                        for (i in 0 until array.length()) {
+                                            val obj = array.getJSONObject(i)
+                                            list.add(
+                                                com.example.chatterapp.screens.AndroidChatGroup(
+                                                    id = obj.getInt("id"),
+                                                    name = obj.getString("name"),
+                                                    isOwner = obj.optInt("is_owner", 0) == 1
+                                                )
+                                            )
+                                        }
+                                        groupsList = list
+                                    }
                                 } else {
-                                    Log.w("ChatterPolling", "Server je vratio prazan ili nevažeći odgovor.")
+                                    // 2. Ako je čet otvoren, povlačimo poruke u realnom vremenu samo za tu izabranu grupu
+                                    val url = "https://ts.net"
+                                    val response = client.get(url)
+                                    val jsonResponse = JSONObject(response.bodyAsText())
+                                    if (jsonResponse.optBoolean("success", true) || jsonResponse.has("messages")) {
+                                        val jsonArray = jsonResponse.getJSONArray("messages")
+                                        val list = mutableListOf<com.example.chatterapp.data.ChatMessage>()
+                                        for (i in 0 until jsonArray.length()) {
+                                            val obj = jsonArray.getJSONObject(i)
+                                            val seenArray = obj.optJSONArray("seen_by")
+                                            val seenList = mutableListOf<String>()
+                                            if (seenArray != null) {
+                                                for (j in 0 until seenArray.length()) { seenList.add(seenArray.getString(j)) }
+                                            }
+                                            list.add(
+                                                com.example.chatterapp.data.ChatMessage(
+                                                    username = obj.optString("username", "Anonimno"),
+                                                    message = obj.optString("message", ""),
+                                                    date = obj.optString("sent_at", ""),
+                                                    seenBy = seenList
+                                                )
+                                            )
+                                        }
+                                        messagesList = list
+                                    }
                                 }
                             } catch (e: Exception) {
-                                // Ako mreža pukne ili server vrati loš format, petlja se NE prekida
                                 Log.e("ChatterPolling", "Greška u polling petlji: ${e.message}")
                             }
-                            // Obavezna pauza od 3 sekunde pre sledećeg zahteva, bez obzira na ishod
                             kotlinx.coroutines.delay(3000)
                         }
                     }
                 }
+
 
 
                 when (currentScreen) {
@@ -224,68 +264,90 @@ class MainActivity : ComponentActivity() {
                                     Tab.GROUPS -> {
                                         GroupsScreen(
                                             currentUsername = currentUsername.value,
-                                            messagesList = messagesList, // Čisto prosleđivanje bez konflikta
+                                            messagesList = messagesList,
                                             textInput = textInput,
                                             onTextInputChange = { textInput = it },
                                             onSendMessageClick = {
-                                                if (textInput.isNotBlank()) {
+                                                if (textInput.isNotBlank() && activeGroupId != 0) {
                                                     coroutineScope.launch {
                                                         val success = sendChatMessage(currentUsername.value, textInput, activeGroupId)
                                                         if (success) {
                                                             textInput = ""
-                                                            // Ponovo učitavamo poruke za trenutno aktivnu grupu
-                                                            val updated = withContext(Dispatchers.IO) {
-                                                                try {
-                                                                    // SPOJI RAZMACE OKO TAČAKA PRE LEPLJENJA:
-                                                                    val url = "https://nikiclab01 . tailfd4e2c . ts . net:8080/chatter-app-3.0/api_chat.php?group_id=$activeGroupId"
-                                                                    val response = client.get(url)
-                                                                    val jsonResponse = JSONObject(response.bodyAsText())
-                                                                    val jsonArray = jsonResponse.getJSONArray("messages")
-                                                                    val list = mutableListOf<ChatMessage>()
-                                                                    for (i in 0 until jsonArray.length()) {
-                                                                        val obj = jsonArray.getJSONObject(i)
-
-                                                                        // Čitamo i viđeno listu ako postoji
-                                                                        val seenArray = obj.optJSONArray("seen_by")
-                                                                        val seenList = mutableListOf<String>()
-                                                                        if (seenArray != null) {
-                                                                            for (j in 0 until seenArray.length()) {
-                                                                                seenList.add(seenArray.getString(j))
-                                                                            }
-                                                                        }
-
-                                                                        // ISPRAVLJENO: Prosleđujemo sva 4 parametra koja novi model zahteva
-                                                                        list.add(
-                                                                            ChatMessage(
-                                                                                username = obj.getString("username"),
-                                                                                message = obj.getString("message"),
-                                                                                date = obj.getString("sent_at"),
-                                                                                seenBy = seenList
-                                                                            )
-                                                                        )
-                                                                    }
-                                                                    list
-                                                                } catch (e: Exception) { null }
-                                                            }
-                                                            if (updated != null) {
-                                                                messagesList = updated
+                                                            // Ponovo brzo osvežavamo čet
+                                                            val url = "https://ts.net"
+                                                            try {
+                                                                val response = client.get(url)
+                                                                val jsonResponse = JSONObject(response.bodyAsText())
+                                                                val jsonArray = jsonResponse.getJSONArray("messages")
+                                                                val list = mutableListOf<com.example.chatterapp.data.ChatMessage>()
+                                                                for (i in 0 until jsonArray.length()) {
+                                                                    val obj = jsonArray.getJSONObject(i)
+                                                                    list.add(com.example.chatterapp.data.ChatMessage(obj.getString("username"), obj.getString("message"), obj.getString("sent_at")))
+                                                                }
+                                                                messagesList = list
                                                                 listState.animateScrollToItem(messagesList.size)
-                                                            }
+                                                            } catch (e: Exception) { }
                                                         }
                                                     }
                                                 }
                                             },
                                             listState = listState,
                                             activeGroupId = activeGroupId,
-                                            onGroupChange = { izabraniId ->
-                                                activeGroupId = izabraniId
-                                                messagesList = emptyList() // Čistimo ekran pri promeni grupe
+                                            onGroupChange = { idSign ->
+                                                coroutineScope.launch {
+                                                    if (idSign == 0) {
+                                                        // Korisnik je kliknuo na dugme "Nazad"
+                                                        activeGroupId = 0
+                                                        messagesList = emptyList()
+                                                    } else if (idSign < 0) {
+                                                        // Detektovana je akcija nad grupom!
+                                                        val actualGroupId = kotlin.math.abs(idSign)
+                                                        val url = "https://ts.net"
+
+                                                        withContext(Dispatchers.IO) {
+                                                            try {
+                                                                if (actualGroupId >= 100) {
+                                                                    // 1. Korisnik napušta grupu (ID je podeljen sa 100)
+                                                                    val realId = actualGroupId / 100
+                                                                    val jsonBody = JSONObject().apply {
+                                                                        put("action", "leave")
+                                                                        put("group_id", realId)
+                                                                        put("username", currentUsername.value)
+                                                                    }.toString()
+                                                                    client.post(url) { contentType(ContentType.Application.Json); setBody(jsonBody) }
+                                                                } else {
+                                                                    // 2. Vlasnik briše celu grupu
+                                                                    val jsonBody = JSONObject().apply {
+                                                                        put("action", "delete")
+                                                                        put("group_id", actualGroupId)
+                                                                        put("username", currentUsername.value)
+                                                                    }.toString()
+                                                                    client.post(url) { contentType(ContentType.Application.Json); setBody(jsonBody) }
+                                                                }
+                                                            } catch (e: Exception) { }
+                                                        }
+                                                        activeGroupId = 0
+                                                    } else {
+                                                        // Korisnik otvara običan čet grupe
+                                                        activeGroupId = idSign
+                                                        messagesList = emptyList()
+
+                                                        // Odmah šaljemo seen status na server da označi poruke kao viđene
+                                                        withContext(Dispatchers.IO) {
+                                                            try {
+                                                                val seenUrl = "https://ts.net"
+                                                                val jsonBody = JSONObject().apply {
+                                                                    put("action", "mark")
+                                                                    put("username", currentUsername.value)
+                                                                    put("group_id", idSign)
+                                                                }.toString()
+                                                                client.post(seenUrl) { contentType(ContentType.Application.Json); setBody(jsonBody) }
+                                                            } catch (e: Exception) { }
+                                                        }
+                                                    }
+                                                }
                                             },
-                                            groupsList = listOf(
-                                                com.example.chatterapp.screens.AndroidChatGroup(8, "KontraverzniBiznismeni"),
-                                                com.example.chatterapp.screens.AndroidChatGroup(9, "Dizajneri I Developeri"),
-                                                com.example.chatterapp.screens.AndroidChatGroup(10, "Privatni Čet")
-                                            )
+                                            groupsList = groupsList
                                         )
                                     }
                                     Tab.PRIVATE -> {
