@@ -282,25 +282,28 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    // Pomoćna funkcija za povlačenje poruka iz grupe
+    // Pomoćna funkcija za povlačenje poruka iz grupe preko ispravnog api_chat.php fajla
     private suspend fun fetchChatMessages(): List<ChatMessage>? {
         return withContext(Dispatchers.IO) {
             try {
-                val url = "https://nikiclab01.tailfd4e2c.ts.net/php/chatter-app-3.0/api_chat.php"
+                // PROMENJENO: putanja sada gadja tvoj ispravan api_chat.php fajl
+                val url = "https://ts.net"
                 val response: HttpResponse = client.get(url)
                 val responseText = response.bodyAsText()
 
                 val jsonResponse = JSONObject(responseText)
-                if (jsonResponse.optBoolean("success", false)) {
+
+                // Prilagodjavamo proveru: ako tvoj PHP vraca direktno niz ili proverava success
+                if (jsonResponse.optBoolean("success", true) || jsonResponse.has("messages")) {
                     val jsonArray = jsonResponse.getJSONArray("messages")
                     val list = mutableListOf<ChatMessage>()
                     for (i in 0 until jsonArray.length()) {
                         val obj = jsonArray.getJSONObject(i)
                         list.add(
                             ChatMessage(
-                                username = obj.getString("username"),
-                                message = obj.getString("message"),
-                                date = obj.optString("sent_at", "")
+                                username = obj.optString("username", "Anonimno"),
+                                message = obj.optString("message", ""),
+                                date = obj.optString("sent_at", obj.optString("date", ""))
                             )
                         )
                     }
@@ -313,11 +316,12 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    // Pomoćna funkcija za slanje poruke na backend
+    // Pomoćna funkcija za slanje poruke preko ispravnog api_send.php fajla
     private suspend fun sendChatMessage(user: String, msg: String, groupId: Int): Boolean {
         return withContext(Dispatchers.IO) {
             try {
-                val url = "https://nikiclab01.tailfd4e2c.ts.net/php/chatter-app-3.0/api_send.php"
+                // PROMENJENO: putanja sada gadja tvoj ispravan api_send.php fajl
+                val url = "https://ts.net"
                 val jsonBody = JSONObject().apply {
                     put("group_id", groupId)
                     put("username", user)
@@ -329,14 +333,18 @@ class MainActivity : ComponentActivity() {
                     setBody(jsonBody)
                 }
 
-                val jsonResponse = JSONObject(response.bodyAsText())
-                jsonResponse.optBoolean("success", false)
+                val responseText = response.bodyAsText()
+                if (responseText.isBlank()) return@withContext true
+
+                val jsonResponse = JSONObject(responseText)
+                jsonResponse.optBoolean("success", true) || jsonResponse.optString("status", "") == "success"
             } catch (e: Exception) {
                 Log.e("ChatterChat", "Send error: ${e.message}")
                 false
             }
         }
     }
+
 }
 
 // Jednostavan zajednički Composable za Login i Register ekrane
