@@ -212,11 +212,26 @@ class MainActivity : ComponentActivity() {
                                         )
                                     }
                                     Tab.GROUPS -> {
-                                        // Čistimo sve stare parametre i ostavljamo samo ono što tvoj GroupsScreen stvarno traži
                                         GroupsScreen(
-                                            onGroupSelect = { groupId ->
-                                                activeGroupId = groupId
-                                            }
+                                            messagesList = messagesList,
+                                            textInput = textInput,
+                                            onTextInputChange = { textInput = it },
+                                            onSendMessageClick = {
+                                                if (textInput.isNotBlank()) {
+                                                    coroutineScope.launch {
+                                                        val success = sendChatMessage(currentUsername.value, textInput, activeGroupId)
+                                                        if (success) {
+                                                            textInput = ""
+                                                            val updated = fetchChatMessages()
+                                                            if (updated != null) {
+                                                                messagesList = updated
+                                                                listState.animateScrollToItem(messagesList.size)
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            },
+                                            listState = listState
                                         )
                                     }
                                     Tab.PRIVATE -> {
