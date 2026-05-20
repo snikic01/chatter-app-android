@@ -258,7 +258,7 @@ class MainActivity : ComponentActivity() {
     private suspend fun handleAuth(user: String, pass: String, type: String): Boolean {
         return withContext(Dispatchers.IO) {
             try {
-                val url = "https://nikiclab01.tailfd4e2c.ts.net/php/chatter-app-3.0/api_auth.php"
+                val url = "https://nikiclab01.tailfd4e2c.ts.net/chatter-app-3.0/api_auth.php"
                 val jsonBody = JSONObject().apply {
                     put("action", type)
                     put("username", user)
@@ -287,7 +287,7 @@ class MainActivity : ComponentActivity() {
         return withContext(Dispatchers.IO) {
             try {
                 // PROMENJENO: putanja sada gadja tvoj ispravan api_chat.php fajl
-                val url = "https://ts.net"
+                val url = "https://nikiclab01.tailfd4e2c.ts.net/chatter-app-3.0/api_chat.php"
                 val response: HttpResponse = client.get(url)
                 val responseText = response.bodyAsText()
 
@@ -321,7 +321,7 @@ class MainActivity : ComponentActivity() {
         return withContext(Dispatchers.IO) {
             try {
                 // PROMENJENO: putanja sada gadja tvoj ispravan api_send.php fajl
-                val url = "https://ts.net"
+                val url = "https://nikiclab01.tailfd4e2c.ts.net/chatter-app-3.0/api_send.php"
                 val jsonBody = JSONObject().apply {
                     put("group_id", groupId)
                     put("username", user)
