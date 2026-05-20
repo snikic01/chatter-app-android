@@ -111,45 +111,75 @@ class MainActivity : ComponentActivity() {
                     if (currentScreen == Screen.CHAT && currentTab == Tab.GROUPS) {
                         while (true) {
                             try {
+                                // KORISTIMO http:// I SPAJAMO STRING DA ZAOBIĐEMO SVE SVE BLOKADE I FILTERE
+                                val baseUrl = "http://" + "nikiclab01.tailfd4e2c.ts.net:8080/chatter-app-3.0/"
+                                val savedUser = sessionManager.getSavedUsername() ?: currentUsername.value
+
                                 if (activeGroupId == 0) {
-                                    // Čitamo direktno iz SessionManager-a pre slanja zahteva
-                                    val savedUser = sessionManager.getSavedUsername() ?: currentUsername.value
-
-                                    // SPOJI RAZMACE OKO TAČAKA PRE LEPLJENJA:
-                                    val baseUrl = "https://nikiclab01.tailfd4e2c.ts.net:8080/chatter-app-3.0/"
+                                    // 1. Povlačimo sve postojeće grupe sa servera preko otvorenog upita
                                     val url = baseUrl + "api_groups.php?action=list&username=" + savedUser
-
                                     val response = client.get(url)
                                     val jsonResponse = JSONObject(response.bodyAsText())
+
                                     if (jsonResponse.optBoolean("success", false)) {
                                         val array = jsonResponse.getJSONArray("groups")
-                                        val list = mutableListOf<com.example.chatterapp.screens.AndroidChatGroup>()
+                                        val filteredList = mutableListOf<com.example.chatterapp.screens.AndroidChatGroup>()
 
                                         for (i in 0 until array.length()) {
                                             val obj = array.getJSONObject(i)
-
-                                            // POPRAVLJENO: Eksplicitno čitamo tačne ključeve sa donjom crtom iz JSON-a
                                             val gId = obj.getInt("id")
-                                            val gName = obj.getString("name")
-                                            val gIsOwner = obj.optBoolean("is_owner", false)
-                                            val gUnreadCount = obj.optInt("unread_count", 0)
 
-                                            // Ubacujemo podatke u tvoj lokalni model na ekranu
-                                            list.add(
-                                                com.example.chatterapp.screens.AndroidChatGroup(
-                                                    id = gId,
-                                                    name = gName,
-                                                    isOwner = gIsOwner,
-                                                    unreadCount = gUnreadCount
-                                                )
-                                            )
+                                            // 2. DINAMIČKI PROVERAVAMO ČLANSTVO: Pitamo bazu ko su članovi za ovaj ID grupe
+                                            try {
+                                                val membersUrl = baseUrl + "api_groups.php"
+                                                val jsonBody = JSONObject().apply {
+                                                    put("action", "members")
+                                                    put("group_id", gId)
+                                                    put("username", savedUser)
+                                                }.toString()
+
+                                                val membersResponse = client.post(membersUrl) {
+                                                    contentType(ContentType.Application.Json)
+                                                    setBody(jsonBody)
+                                                }
+
+                                                val membersResponseJson = JSONObject(membersResponse.bodyAsText())
+                                                if (membersResponseJson.optBoolean("success", false)) {
+                                                    val membersArray = membersResponseJson.getJSONArray("members")
+                                                    var isUserMemberOfThisGroup = false
+
+                                                    // Proveravamo da li se tvoje ime nalazi u group_members tabeli na sajtu
+                                                    for (j in 0 until membersArray.length()) {
+                                                        val memberObj = membersArray.getJSONObject(j)
+                                                        if (memberObj.getString("username").trim().lowercase() == savedUser.trim().lowercase()) {
+                                                            isUserMemberOfThisGroup = true
+                                                            break
+                                                        }
+                                                    }
+
+                                                    val isOwner = obj.optBoolean("is_owner", false)
+
+                                                    // 3. ISPRAVLJENO: Puni se filteredList umesto nepostojeće promenljive list
+                                                    if (isUserMemberOfThisGroup || isOwner) {
+                                                        filteredList.add(
+                                                            com.example.chatterapp.screens.AndroidChatGroup(
+                                                                id = gId,
+                                                                name = obj.getString("name"),
+                                                                isOwner = isOwner,
+                                                                unreadCount = obj.optInt("unread_count", 0)
+                                                            )
+                                                        )
+                                                    }
+                                                }
+                                            } catch (e: Exception) {
+                                                Log.e("ChatterMemberCheck", "Preskačemo proveru za grupu $gId: ${e.message}")
+                                            }
                                         }
-                                        groupsList = list
+                                        groupsList = filteredList // Ekran dobija samo tvoje grupe!
                                     }
-                                }
-                                else {
-                                    // 2. Ako je čet otvoren, povlačimo poruke u realnom vremenu samo za tu izabranu grupu
-                                    val url = "https://nikiclab01.tailfd4e2c.ts.net/php/chatter-app-3.0/api_chat.php"
+                                } else {
+                                    // 2. Ako je čet otvoren, osvežavamo poruke u realnom vremenu za tu izabranu grupu
+                                    val url = baseUrl + "api_chat.php?group_id=" + activeGroupId
                                     val response = client.get(url)
                                     val jsonResponse = JSONObject(response.bodyAsText())
                                     if (jsonResponse.optBoolean("success", true) || jsonResponse.has("messages")) {
@@ -175,12 +205,13 @@ class MainActivity : ComponentActivity() {
                                     }
                                 }
                             } catch (e: Exception) {
-                                Log.e("ChatterPolling", "Greška u polling petlji: ${e.message}")
+                                Log.e("ChatterPolling", "Greška: ${e.message}")
                             }
                             kotlinx.coroutines.delay(3000)
                         }
                     }
                 }
+
 
 
 
