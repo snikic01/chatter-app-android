@@ -138,29 +138,34 @@ fun GroupsScreen(
                             onDismissRequest = { showMenu = false },
                             modifier = Modifier.background(Color.White)
                         ) {
+                            // 1. OPCIJA ZA SVE (I vlasnik i običan član mogu uvek da napuste grupu)
+                            DropdownMenuItem(
+                                text = { Text("Napusti grupu", color = Color.DarkGray) },
+                                leadingIcon = { Icon(Icons.Default.ExitToApp, contentDescription = null, tint = Color.DarkGray) },
+                                onClick = {
+                                    // Prvo okidamo slanje pa tek onda gasimo meni da nit ne pukne
+                                    onGroupChange(-activeGroupId * 100)
+                                    showMenu = false
+                                }
+                            )
+
+                            // 2. DODATNA OPCIJA (Samo vlasnik vidi i mogućnost da kompletno obriše grupu za sve)
                             if (isOwnerOfCurrentGroup) {
                                 DropdownMenuItem(
-                                    text = { Text("Obriši grupu", color = Color.Red, fontWeight = FontWeight.Bold) },
+                                    text = { Text("Obriši grupu (Za sve)", color = Color.Red, fontWeight = FontWeight.Bold) },
                                     leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null, tint = Color.Red) },
                                     onClick = {
-                                        showMenu = false
+                                        // Prvo okidamo slanje pa tek onda gasimo meni da nit ne pukne
                                         onGroupChange(-activeGroupId)
-                                    }
-                                )
-                            } else {
-                                DropdownMenuItem(
-                                    text = { Text("Napusti grupu", color = Color.DarkGray) },
-                                    leadingIcon = { Icon(Icons.Default.ExitToApp, contentDescription = null, tint = Color.DarkGray) },
-                                    onClick = {
                                         showMenu = false
-                                        onGroupChange(-activeGroupId * 100)
                                     }
                                 )
                             }
                         }
+
                     }
-                }
-            }
+    }
+}
 
             LazyColumn(
                 state = listState,
