@@ -4,6 +4,12 @@ import org.json.JSONObject
 import io.ktor.client.statement.bodyAsText
 import androidx.compose.runtime.setValue
 import io.ktor.client.request.get
+import io.ktor.client.request.post
+import io.ktor.client.request.setBody
+import io.ktor.http.contentType
+import android.util.Log
+import kotlinx.coroutines.launch
+
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -355,17 +361,73 @@ fun GroupsScreen(
             title = { Text("Članovi grupe", fontWeight = FontWeight.Bold) },
             text = {
                 Column(modifier = Modifier.fillMaxWidth().padding(8.dp)) {
-                    Text("Korisnici sa sajta koji su u ovom četu:", color = Color.Gray, fontSize = 14.sp)
+                    Text("Svi registrovani članovi u ovoj grupi:", color = Color.Gray, fontSize = 14.sp)
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    val uniqueMembers = messagesList.map { it.username }.distinct()
-
-                    LazyColumn(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        if (uniqueMembers.isEmpty()) {
-                            item { Text("• Nema aktivnih članova u istoriji", color = Color.Black) }
+                    LazyColumn(
+                        modifier = Modifier.fillMaxWidth().heightIn(max = 250.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        if (groupMembers.isEmpty()) {
+                            item { Text("Učitavanje članova...", color = Color.Gray) }
                         } else {
-                            items(uniqueMembers) { member ->
-                                Text(text = "• $member", fontSize = 16.sp, color = Color.Black, fontWeight = FontWeight.Medium)
+                            items(groupMembers) { clan ->
+                                val userId = clan.first
+                                val username = clan.second
+
+                                val currentGroup = groupsList.find { it.id == activeGroupId }
+                                val jesteVlasnikGrupe = currentGroup?.isOwner == true
+                                val daLiSamToJa = username == currentUsername
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    // Prikazujemo ime člana
+                                    Text(
+                                        text = "• $username",
+                                        fontSize = 16.sp,
+                                        color = Color.Black,
+                                        fontWeight = if (daLiSamToJa) FontWeight.Bold else FontWeight.Medium
+                                    )
+
+                                    // KANTA ZA IZBACIVANJE: Prikazuje se samo ako si ti vlasnik grupe, i to pored tuđih imena
+                                    if (jesteVlasnikGrupe && !daLiSamToJa) {
+                                        IconButton(onClick = {
+                                            coroutineScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                                                try {
+                                                    val url = com.example.chatterapp.data.NetworkConfig.getMembersApiUrl()
+                                                    val jsonBody = JSONObject().apply {
+                                                        put("action", "kick")
+                                                        put("username", currentUsername) // Tvoje ime da PHP proveri prava
+                                                        put("group_id", activeGroupId)
+                                                        put("kick_user_id", userId) // ID člana kog izbacuješ
+                                                    }.toString()
+
+                                                    val response = client.post(url) {
+                                                        contentType(io.ktor.http.ContentType.Application.Json)
+                                                        setBody(jsonBody)
+                                                    }
+
+                                                    val jsonResult = JSONObject(response.bodyAsText())
+                                                    if (jsonResult.optBoolean("success", false)) {
+                                                        // Instant sklanjamo izbačenog člana sa ekrana telefona
+                                                        groupMembers = groupMembers.filter { it.first != userId }
+                                                    }
+                                                } catch (e: Exception) {
+                                                    Log.e("ChatterMembers", "Greška pri kikovnju: ${e.message}")
+                                                }
+                                            }
+                                        }) {
+                                            Icon(
+                                                imageVector = Icons.Default.Delete,
+                                                contentDescription = "Izbaci",
+                                                tint = Color.Red
+                                            )
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
@@ -376,4 +438,5 @@ fun GroupsScreen(
             }
         )
     }
+
 }
