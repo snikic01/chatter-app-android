@@ -344,8 +344,8 @@ class MainActivity : ComponentActivity() {
                                             activeGroupId = activeGroupId,
                                             onGroupChange = { idSign ->
                                                 coroutineScope.launch {
-                                                    // Čista, spojena HTTP putanja na portu 8080 bez dupliranja fajlova
-                                                    val baseUrl = "http://" + "nikiclab01.tailfd4e2c.ts.net:8080/chatter-app-3.0/"
+                                                    // Koristimo tvoj centralizovani BASE_URL iz NetworkConfig-a (HTTPS, bez portova)
+                                                    val baseUrl = com.example.chatterapp.data.NetworkConfig.BASE_URL
 
                                                     if (idSign == 0) {
                                                         // Korisnik je kliknuo na dugme "Nazad" unutar četa
@@ -353,12 +353,12 @@ class MainActivity : ComponentActivity() {
                                                         messagesList = emptyList()
                                                     } else if (idSign < 0) {
                                                         val actualGroupId = kotlin.math.abs(idSign)
+                                                        // Putanja do api_groups.php preko tvog NetworkConfig-a
                                                         val url = baseUrl + "api_groups.php"
 
                                                         Log.d("ChatterBUG", "KLIKNUT IZLAZ! idSign: $idSign, Izračunat realId grupe: ${actualGroupId / 100}, Trenutni ulogovani user: ${currentUsername.value}")
 
-
-                                                        withContext(Dispatchers.IO) {
+                                                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
                                                             try {
                                                                 if (actualGroupId >= 100) {
                                                                     // KORISNIK NAPUŠTA GRUPU (Deli se sa 100 da se dobije realan ID)
@@ -366,12 +366,11 @@ class MainActivity : ComponentActivity() {
                                                                     val jsonBody = JSONObject().apply {
                                                                         put("action", "leave")
                                                                         put("group_id", realId)
-                                                                        // POTPUNO DINAMIČKI: Šaljemo trenutno ime, server sam nalazi ID u bazi!
                                                                         put("username", currentUsername.value)
                                                                     }.toString()
 
                                                                     client.post(url) {
-                                                                        contentType(ContentType.Application.Json)
+                                                                        contentType(io.ktor.http.ContentType.Application.Json)
                                                                         setBody(jsonBody)
                                                                     }
                                                                 } else {
@@ -379,16 +378,17 @@ class MainActivity : ComponentActivity() {
                                                                     val jsonBody = JSONObject().apply {
                                                                         put("action", "delete")
                                                                         put("group_id", actualGroupId)
-                                                                        // POTPUNO DINAMIČKI: Šaljemo trenutno ime, server sam nalazi ID u bazi!
                                                                         put("username", currentUsername.value)
                                                                     }.toString()
 
                                                                     client.post(url) {
-                                                                        contentType(ContentType.Application.Json)
+                                                                        contentType(io.ktor.http.ContentType.Application.Json)
                                                                         setBody(jsonBody)
                                                                     }
                                                                 }
-                                                            } catch (e: Exception) { }
+                                                            } catch (e: Exception) {
+                                                                Log.e("ChatterBUG", "Greška pri napuštanju/brisanju: ${e.message}")
+                                                            }
                                                         }
                                                         activeGroupId = 0 // Osvežava ekran i vraća na listu grupa koja će sada biti očišćena!
                                                     } else {
@@ -397,18 +397,17 @@ class MainActivity : ComponentActivity() {
                                                         messagesList = emptyList()
 
                                                         // ŠALJEMO ISPRAVAN SEEN STATUS PREKO DINAMIČKOG IMENA KORISNIKA
-                                                        withContext(Dispatchers.IO) {
+                                                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
                                                             try {
                                                                 val seenUrl = baseUrl + "api_seen.php"
                                                                 val jsonBody = JSONObject().apply {
                                                                     put("action", "mark")
-                                                                    // POTPUNO DINAMIČKI: Šaljemo trenutno ime ulogovanog korisnika
                                                                     put("username", currentUsername.value)
                                                                     put("group_id", idSign)
                                                                 }.toString()
 
                                                                 client.post(seenUrl) {
-                                                                    contentType(ContentType.Application.Json)
+                                                                    contentType(io.ktor.http.ContentType.Application.Json)
                                                                     setBody(jsonBody)
                                                                 }
                                                             } catch (e: Exception) {
