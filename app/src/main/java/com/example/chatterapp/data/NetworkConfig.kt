@@ -13,5 +13,8 @@ object NetworkConfig {
     fun getChatUrl(groupId: Int): String = "${BASE_URL}api_chat.php?group_id=$groupId"
 
     // NAPUŠTANJE I BRISANJE GRUPE
-    // apiji su u api_group.php
+    // apiji su u api_group.
+
+    // Funkcija za dobijanje tačnog URL-a za označavanje poruka kao pročitanih
+    fun getSeenUrl(): String = "${BASE_URL}api_seen.php"
 }

@@ -396,22 +396,54 @@ class MainActivity : ComponentActivity() {
                                                         activeGroupId = idSign
                                                         messagesList = emptyList()
 
-                                                        // ŠALJEMO ISPRAVAN SEEN STATUS PREKO DINAMIČKOG IMENA KORISNIKA
+                                                        // ŠALJEMO ISPRAVAN SEEN STATUS I ODMAH OSVEŽAVAMO LISTU GRUPA DA NESTANE KRUŽIĆ
                                                         kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
                                                             try {
-                                                                val seenUrl = baseUrl + "api_seen.php"
+                                                                // 1. Koristimo novu funkciju iz NetworkConfig-a (siguran HTTPS)
+                                                                val seenUrl = com.example.chatterapp.data.NetworkConfig.getSeenUrl()
                                                                 val jsonBody = JSONObject().apply {
                                                                     put("action", "mark")
                                                                     put("username", currentUsername.value)
                                                                     put("group_id", idSign)
                                                                 }.toString()
 
-                                                                client.post(seenUrl) {
+                                                                val responseSeen = client.post(seenUrl) {
                                                                     contentType(io.ktor.http.ContentType.Application.Json)
                                                                     setBody(jsonBody)
                                                                 }
+
+                                                                // 2. Čim server potvrdi primanje, odmah povlačimo novu listu grupa sa unread_count = 0
+                                                                val savedUser = sessionManager.getSavedUsername() ?: currentUsername.value
+                                                                val urlGroups = com.example.chatterapp.data.NetworkConfig.getGroupsUrl(savedUser)
+                                                                val responseGroups = client.get(urlGroups)
+                                                                val jsonGroups = JSONObject(responseGroups.bodyAsText())
+
+                                                                if (jsonGroups.optBoolean("success", false)) {
+                                                                    val array = jsonGroups.getJSONArray("groups")
+                                                                    val list = mutableListOf<com.example.chatterapp.screens.AndroidChatGroup>()
+
+                                                                    for (i in 0 until array.length()) {
+                                                                        val obj = array.getJSONObject(i)
+                                                                        val isOwner = obj.optInt("is_owner", 0) == 1
+
+                                                                        list.add(
+                                                                            com.example.chatterapp.screens.AndroidChatGroup(
+                                                                                id = obj.getInt("id"),
+                                                                                name = obj.getString("name"),
+                                                                                isOwner = isOwner,
+                                                                                unreadCount = obj.optInt("unread_count", 0),
+                                                                                ownerName = obj.optString("owner_name", "")
+                                                                            )
+                                                                        )
+                                                                    }
+
+                                                                    // Vraćamo se na glavnu nit da instant ažuriramo ekran i sklonimo kružić
+                                                                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                                                                        groupsList = list
+                                                                    }
+                                                                }
                                                             } catch (e: Exception) {
-                                                                Log.e("ChatterSeen", "Greška pri slanju seen statusa: ${e.message}")
+                                                                Log.e("ChatterSeen", "Greška pri slanju seen statusa ili osvežavanju: ${e.message}")
                                                             }
                                                         }
                                                     }
