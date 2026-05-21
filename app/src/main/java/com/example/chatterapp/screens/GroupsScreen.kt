@@ -59,11 +59,7 @@ fun GroupsScreen(
     activeGroupId: Int,
     onGroupChange: (Int) -> Unit,
     groupsList: List<AndroidChatGroup>,
-    client: io.ktor.client.HttpClient, // Dodat parametar za klijenta
-    // DODATI PARAMETRI ZA POLJE:
-    newMemberUsername: String,
-    onNewMemberUsernameChange: (String) -> Unit,
-    onAddMemberClick: () -> Unit
+    client: io.ktor.client.HttpClient // 👈 POSLEDNJI PARAMETAR JE KLIJENT!
 ) {
 
     var showMembersDialog by remember { mutableStateOf(false) }
