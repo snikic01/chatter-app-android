@@ -144,10 +144,13 @@ fun MainScaffold(
                     )
                 }
                 Tab.PRIVATE -> {
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text("Privatne Poruke (U izradi)")
-                    }
+                    // Pozivanje screen-a za privatne poruke!
+                    PrivateScreen(
+                        currentUsername = currentUsername,
+                        client = client
+                    )
                 }
+
                 Tab.FRIENDS -> {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Text("Prijatelji (U izradi)")
