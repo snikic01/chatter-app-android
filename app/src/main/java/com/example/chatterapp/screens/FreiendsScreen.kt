@@ -43,6 +43,8 @@ fun FriendsScreen(currentUsername: String, client: HttpClient) {
     var friendsList by remember { mutableStateOf(listOf<AndroidFriend>()) }
     var requestsList by remember { mutableStateOf(listOf<AndroidFriendRequest>()) }
     var suggestionsList by remember { mutableStateOf(listOf<AndroidFriend>()) }
+    var userSuggestions by remember { mutableStateOf<List<String>>(emptyList()) }
+
 
     var localSearchQuery by remember { mutableStateOf("") }
     var newFriendQuery by remember { mutableStateOf("") }
@@ -112,6 +114,7 @@ fun FriendsScreen(currentUsername: String, client: HttpClient) {
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             // === DEO 1: RUČNO SLANJE ZAHTEVA ===
+            // === DEO 1: SLANJE NOVOG ZAHTEVA ZA PRIJATELJSTVO SA SUGESTIJAMA ===
             item {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
@@ -122,40 +125,105 @@ fun FriendsScreen(currentUsername: String, client: HttpClient) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text(text = "Pronađi novog prijatelja", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color.Black)
                         Spacer(modifier = Modifier.height(8.dp))
-                        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                            OutlinedTextField(
-                                value = newFriendQuery,
-                                onValueChange = { newFriendQuery = it },
-                                placeholder = { Text("Unesi korisničko ime...") },
-                                modifier = Modifier.weight(1f),
-                                singleLine = true,
-                                shape = RoundedCornerShape(8.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            IconButton(
-                                onClick = {
-                                    if (newFriendQuery.isNotBlank()) {
-                                        val targetUser = newFriendQuery.trim()
-                                        coroutineScope.launch(Dispatchers.IO) {
-                                            try {
-                                                val jsonBody = JSONObject().apply {
-                                                    put("action", "add")
-                                                    put("username", currentUsername)
-                                                    put("friend_username", targetUser)
-                                                }.toString()
-                                                val response = client.post(NetworkConfig.getFriendsApiUrl()) {
-                                                    contentType(ContentType.Application.Json)
-                                                    setBody(jsonBody)
+
+                        Column(modifier = Modifier.fillMaxWidth()) {
+                            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                                OutlinedTextField(
+                                    value = newFriendQuery,
+                                    onValueChange = { unetiTekst ->
+                                        newFriendQuery = unetiTekst
+
+                                        // --- INSTANT PRETRAGA I SUGESTIJE TOKOM KUCANJA ---
+                                        if (unetiTekst.trim().length >= 2) {
+                                            coroutineScope.launch(Dispatchers.IO) {
+                                                try {
+                                                    // Koristimo našu proverenu akciju pretrage i osvežavamo usera u pozadini
+                                                    val url = NetworkConfig.getSearchUsersUrl(0, unetiTekst.trim()) + "&username=$currentUsername"
+                                                    val response = client.get(url)
+                                                    val json = JSONObject(response.bodyAsText())
+
+                                                    if (json.optBoolean("success", false)) {
+                                                        val array = json.getJSONArray("users")
+                                                        val tempList = mutableListOf<String>()
+                                                        for (i in 0 until array.length()) {
+                                                            tempList.add(array.getString(i))
+                                                        }
+                                                        withContext(Dispatchers.Main) {
+                                                            userSuggestions = tempList
+                                                        }
+                                                    }
+                                                } catch (e: Exception) {
+                                                    withContext(Dispatchers.Main) { userSuggestions = emptyList() }
                                                 }
-                                                val res = JSONObject(response.bodyAsText())
-                                                isError = !res.optBoolean("success", false)
-                                                infoMessage = res.getString("message")
-                                                if (!isError) withContext(Dispatchers.Main) { newFriendQuery = "" }
-                                            } catch (e: Exception) { isError = true; infoMessage = "Greška na mreži." }
+                                            }
+                                        } else {
+                                            userSuggestions = emptyList()
+                                        }
+                                    },
+                                    placeholder = { Text("Unesi korisničko ime...") },
+                                    modifier = Modifier.weight(1f),
+                                    singleLine = true,
+                                    shape = RoundedCornerShape(8.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                IconButton(
+                                    onClick = {
+                                        if (newFriendQuery.isNotBlank()) {
+                                            val targetUser = newFriendQuery.trim()
+                                            coroutineScope.launch(Dispatchers.IO) {
+                                                try {
+                                                    val jsonBody = JSONObject().apply {
+                                                        put("action", "add")
+                                                        put("username", currentUsername)
+                                                        put("friend_username", targetUser)
+                                                    }.toString()
+                                                    val response = client.post(NetworkConfig.getFriendsApiUrl()) {
+                                                        contentType(ContentType.Application.Json)
+                                                        setBody(jsonBody)
+                                                    }
+                                                    val res = JSONObject(response.bodyAsText())
+                                                    isError = !res.optBoolean("success", false)
+                                                    infoMessage = res.getString("message")
+                                                    if (!isError) {
+                                                        withContext(Dispatchers.Main) {
+                                                            newFriendQuery = ""
+                                                            userSuggestions = emptyList()
+                                                        }
+                                                    }
+                                                } catch (e: Exception) { isError = true; infoMessage = "Greška na mreži." }
+                                            }
+                                        }
+                                    }
+                                ) { Icon(Icons.Default.Add, contentDescription = "Dodaj", tint = Color(0xFF2196F3)) }
+                            }
+
+                            // === BOX ZA PRIKAZ SUGESTIJA KORISNIKA SA WEB SAJTA ===
+                            if (userSuggestions.isNotEmpty()) {
+                                Card(
+                                    modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                                    shape = RoundedCornerShape(8.dp),
+                                    colors = CardDefaults.cardColors(containerColor = Color(0xFFEEEEEE)),
+                                    elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                                ) {
+                                    Column(modifier = Modifier.padding(4.dp)) {
+                                        userSuggestions.forEach { predlozenoIme ->
+                                            Text(
+                                                text = predlozenoIme,
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .clickable {
+                                                        // Na klik, ime uskače u input i predlozi se automatski sakrivaju
+                                                        newFriendQuery = predlozenoIme
+                                                        userSuggestions = emptyList()
+                                                    }
+                                                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                                                fontSize = 15.sp,
+                                                color = Color.Black
+                                            )
                                         }
                                     }
                                 }
-                            ) { Icon(Icons.Default.Add, contentDescription = "Dodaj", tint = Color(0xFF2196F3)) }
+                            }
                         }
                         infoMessage?.let { msg ->
                             Spacer(modifier = Modifier.height(8.dp))
@@ -164,6 +232,7 @@ fun FriendsScreen(currentUsername: String, client: HttpClient) {
                     }
                 }
             }
+
 
             // === 🚨 DEO 2: NOVO - PREDLOŽENI PRIJATELJI (FRIEND SUGGESTIONS) ===
             if (suggestionsList.isNotEmpty()) {
