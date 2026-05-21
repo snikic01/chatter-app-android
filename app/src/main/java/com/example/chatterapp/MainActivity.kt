@@ -431,7 +431,8 @@ class MainActivity : ComponentActivity() {
                                                     }
                                                 }
                                             },
-                                            groupsList = groupsList
+                                            groupsList = groupsList,
+                                            client = client // FIX: Dodata linija koja je rušila celi Gradle Build!
                                         )
                                     }
                                     Tab.PRIVATE -> {
