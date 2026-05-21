@@ -60,6 +60,13 @@ fun PrivateScreen(
     var privateMessagesList by remember { mutableStateOf(listOf<ChatMessage>()) }
     var privateTextInput by remember { mutableStateOf("") }
 
+    // Searchbar:
+    var searchQuery by remember { mutableStateOf("") }
+    val filtriraniČatovi = chatsList.filter {
+        it.username.contains(searchQuery, ignoreCase = true)
+    }
+
+
     val coroutineScope = rememberCoroutineScope()
     val privateListState = rememberLazyListState()
 
@@ -158,75 +165,102 @@ fun PrivateScreen(
         Scaffold(
             topBar = { TopAppBar(title = { Text("Privatne Poruke", fontWeight = FontWeight.Bold) }) }
         ) { paddingValues ->
-            LazyColumn(
+            Column(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(paddingValues)
                     .background(Color(0xFFF8F9FA))
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
             ) {
-                items(chatsList) { chat ->
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable {
-                                activeChatUserId = chat.id
-                                activeChatUsername = chat.username
-                                activeChatUserOnline = chat.isOnline
-                                privateMessagesList = emptyList()
+                // 🔍 SEARCH BAR NA VRHU LISTE
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    placeholder = { Text("Pretraži prijatelje...") },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 12.dp),
+                    shape = RoundedCornerShape(10.dp),
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = Color.White,
+                        unfocusedContainerColor = Color.White
+                    )
+                )
 
-                                // Označavamo poruke kao pročitane na serveru odmah pri ulasku
-                                coroutineScope.launch(Dispatchers.IO) {
-                                    try {
-                                        val jsonBody = JSONObject().apply {
-                                            put("action", "mark")
-                                            put("username", currentUsername)
-                                            put("chat_user_id", chat.id)
-                                        }.toString()
-                                        client.post(NetworkConfig.getPrivateSeenApiUrl()) {
-                                            contentType(ContentType.Application.Json)
-                                            setBody(jsonBody)
-                                        }
-                                    } catch (e: Exception) { Log.e("PrivateSeen", "Greška: ${e.message}") }
-                                }
-                            },
-                        shape = RoundedCornerShape(12.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color.White),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(16.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                // 🟢 LAMPICA ZA STATUS LEVO OD IMENA
-                                Box(
-                                    modifier = Modifier
-                                        .size(12.dp)
-                                        .background(
-                                            color = if (chat.isOnline) Color(0xFF4CAF50) else Color(0xFF9E9E9E),
-                                            shape = CircleShape
-                                        )
-                                )
-                                Spacer(modifier = Modifier.width(12.dp))
-
-                                Column {
-                                    Text(text = chat.username, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color.Black)
-                                    Text(text = chat.lastMessage, fontSize = 13.sp, color = Color.Gray, maxLines = 1)
-                                }
+                // LISTA KOJA SADA KORISTI FILTER U REALNOM VREMENU
+                LazyColumn(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    if (filtriraniČatovi.isEmpty() && searchQuery.isNotBlank()) {
+                        item {
+                            Box(modifier = Modifier.fillMaxWidth().padding(top = 24.dp), contentAlignment = Alignment.Center) {
+                                Text("Nema pronađenih prijatelja", color = Color.Gray)
                             }
+                        }
+                    } else {
+                        items(filtriraniČatovi) { chat ->
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        activeChatUserId = chat.id
+                                        activeChatUsername = chat.username
+                                        activeChatUserOnline = chat.isOnline
+                                        privateMessagesList = emptyList()
+                                        searchQuery = "" // Čistimo pretragu pri ulasku u čet
 
-                            // 🔴 CRVENI BALONČIĆ ZA NEPROČITANE
-                            if (chat.unreadCount > 0) {
-                                Box(
-                                    modifier = Modifier
-                                        .background(Color.Red, shape = CircleShape)
-                                        .padding(horizontal = 10.dp, vertical = 4.dp),
-                                    contentAlignment = Alignment.Center
+                                        coroutineScope.launch(Dispatchers.IO) {
+                                            try {
+                                                val jsonBody = JSONObject().apply {
+                                                    put("action", "mark")
+                                                    put("username", currentUsername)
+                                                    put("chat_user_id", chat.id)
+                                                }.toString()
+                                                client.post(NetworkConfig.getPrivateSeenApiUrl()) {
+                                                    contentType(ContentType.Application.Json)
+                                                    setBody(jsonBody)
+                                                }
+                                            } catch (e: Exception) { Log.e("PrivateSeen", "Greška: ${e.message}") }
+                                        }
+                                    },
+                                shape = RoundedCornerShape(12.dp),
+                                colors = CardDefaults.cardColors(containerColor = Color.White),
+                                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth().padding(16.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
-                                    Text(text = chat.unreadCount.toString(), color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(12.dp)
+                                                .background(
+                                                    color = if (chat.isOnline) Color(0xFF4CAF50) else Color(0xFF9E9E9E),
+                                                    shape = CircleShape
+                                                )
+                                        )
+                                        Spacer(modifier = Modifier.width(12.dp))
+
+                                        Column {
+                                            Text(text = chat.username, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color.Black)
+                                            Text(text = chat.lastMessage, fontSize = 13.sp, color = Color.Gray, maxLines = 1)
+                                        }
+                                    }
+
+                                    if (chat.unreadCount > 0) {
+                                        Box(
+                                            modifier = Modifier
+                                                .background(Color.Red, shape = CircleShape)
+                                                .padding(horizontal = 10.dp, vertical = 4.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(text = chat.unreadCount.toString(), color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                        }
+                                    }
                                 }
                             }
                         }
