@@ -25,6 +25,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.chatterapp.data.ChatMessage
 
+import androidx.compose.foundation.lazy.itemsIndexed
+
 // Tvoj lokalni model proširen poljem unreadCount za brojač sa sajta
 data class AndroidChatGroup(
     val id: Int,
@@ -180,13 +182,47 @@ fun GroupsScreen(
                 state = listState,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .weight(1f) // Ovo tera listu da zauzme sav prostor između bara i polja za unos
+                    .weight(1f) // Zauzima sav prostor između bara i polja za unos
                     .padding(horizontal = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                items(messagesList) { chatMessage ->
+                // POPRAVLJENO: Koristimo itemsIndexed da imamo pristup index-u za promenu datuma
+                itemsIndexed(messagesList) { index, chatMessage ->
                     val isMe = chatMessage.username == currentUsername
 
+                    // Izvlačimo datum (npr. "2026-05-21") iz formata "YYYY-MM-DD HH:MM:SS"
+                    val trenutniDatum = chatMessage.date.substringBefore(" ")
+
+                    // --- 1. PREGRADNICA ZA DATUM ---
+                    // Prikazuje se ako je prva poruka u četu ili ako je datum drugačiji od prethodne poruke
+                    val prikaziPregradnicu = index == 0 || messagesList[index - 1].date.substringBefore(" ") != trenutniDatum
+
+                    if (prikaziPregradnicu) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            // Leva linija pregradnice
+                            Spacer(modifier = Modifier.weight(1f).height(1.dp).background(Color(0xFFDDDDDD)))
+
+                            // Tekst sa datumom
+                            Text(
+                                text = trenutniDatum.ifBlank { "Istorija" },
+                                fontSize = 11.sp,
+                                color = Color.Gray,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 8.dp)
+                            )
+
+                            // Desna linija pregradnice
+                            Spacer(modifier = Modifier.weight(1f).height(1.dp).background(Color(0xFFDDDDDD)))
+                        }
+                    }
+
+                    // --- GLAVNI BALONČIĆ ---
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = if (isMe) Arrangement.End else Arrangement.Start
@@ -204,12 +240,12 @@ fun GroupsScreen(
                                 )
                             }
 
-                            // --- GLAVNI BALONČIĆ ---
                             Box(
                                 modifier = Modifier
                                     .background(
                                         color = if (isMe) Color(0xFF2196F3) else Color(0xFFE0E0E0),
-                                        shape = androidx.compose.foundation.shape.RoundedCornerShape(
+                                        // OBRISANA POGREŠNA PUTANJA: Koristimo čist import sa vrha fajla!
+                                        shape = RoundedCornerShape(
                                             topStart = 16.dp,
                                             topEnd = 16.dp,
                                             bottomStart = if (isMe) 16.dp else 2.dp,
@@ -232,7 +268,7 @@ fun GroupsScreen(
                                         horizontalArrangement = Arrangement.End,
                                         modifier = Modifier.align(Alignment.End)
                                     ) {
-                                        // Izvlačimo samo sate i minute iz "YYYY-MM-DD HH:MM:SS" formata
+                                        // Izvlačimo samo sate i minute iz formata datuma
                                         val vreme = chatMessage.date.substringAfter(" ").substringBeforeLast(":")
                                         Text(
                                             text = vreme.ifBlank { "00:00" },
@@ -240,14 +276,24 @@ fun GroupsScreen(
                                             color = if (isMe) Color(0xFFBBDEFB) else Color.Gray
                                         )
 
+                                        // --- 2. SKUPNI SEEN STATUS ZA IMENA ---
                                         if (isMe && chatMessage.seenBy.isNotEmpty()) {
                                             Spacer(modifier = Modifier.width(4.dp))
-                                            Text(
-                                                text = "✓",
-                                                fontSize = 10.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                color = Color(0xFFB2FF59)
-                                            )
+
+                                            // Filtriramo tvoje ime (da ne piše da si ti video svoju poruku)
+                                            val ostaliKorisnici = chatMessage.seenBy.filter { it != currentUsername }
+
+                                            if (ostaliKorisnici.isNotEmpty()) {
+                                                // Spajamo sva imena u jedan string razdvojen zarezom (npr. "nikic, petar")
+                                                val imenaKojiSuVideli = ostaliKorisnici.joinToString(", ")
+
+                                                Text(
+                                                    text = "✓ ($imenaKojiSuVideli)",
+                                                    fontSize = 9.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = Color(0xFFB2FF59) // Prelepa svetlo zelena boja
+                                                )
+                                            }
                                         }
                                     }
                                 }
