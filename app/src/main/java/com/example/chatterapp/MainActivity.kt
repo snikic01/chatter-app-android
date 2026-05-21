@@ -252,37 +252,42 @@ class MainActivity : ComponentActivity() {
                     Screen.CHAT -> {
                         Scaffold(
                             bottomBar = {
-                                NavigationBar(containerColor = Color.White) {
-                                    NavigationBarItem(
-                                        icon = { Icon(Icons.Default.Home, contentDescription = "Početna") },
-                                        label = { Text("Početna") },
-                                        selected = currentTab == Tab.DASHBOARD,
-                                        onClick = { currentTab = Tab.DASHBOARD }
-                                    )
-                                    NavigationBarItem(
-                                        icon = { Icon(Icons.Default.List, contentDescription = "Grupe") },
-                                        label = { Text("Grupe") },
-                                        selected = currentTab == Tab.GROUPS,
-                                        onClick = { currentTab = Tab.GROUPS }
-                                    )
-                                    NavigationBarItem(
-                                        icon = { Icon(Icons.Default.MailOutline, contentDescription = "Poruke") },
-                                        label = { Text("Poruke") },
-                                        selected = currentTab == Tab.PRIVATE,
-                                        onClick = { currentTab = Tab.PRIVATE }
-                                    )
-                                    NavigationBarItem(
-                                        icon = { Icon(Icons.Default.Person, contentDescription = "Prijatelji") },
-                                        label = { Text("Prijatelji") },
-                                        selected = currentTab == Tab.FRIENDS,
-                                        onClick = { currentTab = Tab.FRIENDS }
-                                    )
+                                // SAKRIVANJE: Prikazujemo meni samo ako korisnik nije unutar otvorenog grupnog četa
+                                if (currentTab != Tab.GROUPS || activeGroupId == 0) {
+                                    NavigationBar(containerColor = Color.White) {
+                                        NavigationBarItem(
+                                            icon = { Icon(Icons.Default.Home, contentDescription = "Početna") },
+                                            label = { Text("Početna") },
+                                            selected = currentTab == Tab.DASHBOARD,
+                                            onClick = { currentTab = Tab.DASHBOARD }
+                                        )
+                                        NavigationBarItem(
+                                            icon = { Icon(Icons.Default.List, contentDescription = "Grupe") },
+                                            label = { Text("Grupe") },
+                                            selected = currentTab == Tab.GROUPS,
+                                            onClick = { currentTab = Tab.GROUPS }
+                                        )
+                                        NavigationBarItem(
+                                            icon = { Icon(Icons.Default.MailOutline, contentDescription = "Poruke") },
+                                            label = { Text("Poruke") },
+                                            selected = currentTab == Tab.PRIVATE,
+                                            onClick = { currentTab = Tab.PRIVATE }
+                                        )
+                                        NavigationBarItem(
+                                            icon = { Icon(Icons.Default.Person, contentDescription = "Prijatelji") },
+                                            label = { Text("Prijatelji") },
+                                            selected = currentTab == Tab.FRIENDS,
+                                            onClick = { currentTab = Tab.FRIENDS }
+                                        )
+                                    }
                                 }
                             }
                         ) { paddingValues ->
                             Box(modifier = Modifier.padding(paddingValues)) {
                                 when (currentTab) {
                                     Tab.DASHBOARD -> {
+                                        // ... tvoj ostatak koda ispod ...
+
                                         DashboardScreen(
                                             authViewModel = authViewModel,
                                             onLogoutSuccess = {
