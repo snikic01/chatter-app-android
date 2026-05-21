@@ -217,56 +217,48 @@ fun GroupsScreen(
             }
         }
 
-        // --- DODATO: POZIV ZA ČLANOVE (Ujedinjuje vlasnika i korisnike preko api_groups.php) ---
-        // --- POPRAVLJENO: Donji poziv sada koristi ispravan Triple i čita is_online status ---
+        // --- POPRAVLJENO: Poler koji automatski osvežava lampice na 3 sekunde dok je dijalog otvoren ---
         LaunchedEffect(showMembersDialog) {
             if (showMembersDialog && activeGroupId != 0) {
-                try {
-                    val url = com.example.chatterapp.data.NetworkConfig.getMembersUrl(activeGroupId)
-                    val response =
-                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                while (showMembersDialog) { // Vrti petlju sve dok korisnik ne zatvori info panel
+                    try {
+                        val url = com.example.chatterapp.data.NetworkConfig.getMembersUrl(activeGroupId)
+                        val response = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
                             client.get(url)
                         }
 
-                    val json = JSONObject(response.bodyAsText())
+                        val json = JSONObject(response.bodyAsText())
+                        Log.d("ChatterMembersBUG", "Automatsko osvežavanje članova: ${response.bodyAsText()}")
 
-                    // LOG ZA DIJAGNOSTIKU: Ispisaće nam u Logcat tačan JSON koji Linux server šalje!
-                    Log.d(
-                        "ChatterMembersBUG",
-                        "Odgovor servera za članove: ${response.bodyAsText()}"
-                    )
+                        if (json.optBoolean("success", false) || json.has("members")) {
+                            val array = json.getJSONArray("members")
+                            val tempList = mutableListOf<Triple<Int, String, Boolean>>()
 
-                    if (json.optBoolean("success", false) || json.has("members")) {
-                        val array = json.getJSONArray("members")
-                        val tempList = mutableListOf<Triple<Int, String, Boolean>>()
+                            for (i in 0 until array.length()) {
+                                val obj = array.getJSONObject(i)
 
-                        for (i in 0 until array.length()) {
-                            val obj = array.getJSONObject(i)
+                                val idString = if (obj.has("id")) obj.getString("id") else obj.optString("Id", "0")
+                                val realId = idString.toIntOrNull() ?: 0
+                                val realName = if (obj.has("username")) obj.getString("username") else obj.optString("Username", "Nepoznato")
+                                val isOnline = obj.optInt("is_online", 0) == 1
 
-                            // BEZBEDNO ČITANJE: Proveravamo i mala i velika slova da ključ ne promaši!
-                            val idString =
-                                if (obj.has("id")) obj.getString("id") else obj.optString("Id", "0")
-                            val realId = idString.toIntOrNull() ?: 0
-                            val realName =
-                                if (obj.has("username")) obj.getString("username") else obj.optString(
-                                    "Username",
-                                    "Nepoznato"
-                                )
-                            val isOnline = obj.optInt("is_online", 0) == 1
+                                tempList.add(Triple(realId, realName, isOnline))
+                            }
 
-                            tempList.add(Triple(realId, realName, isOnline))
+                            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                                groupMembers = tempList
+                            }
                         }
-
-                        // Vraćamo se na glavnu nit i bezbedno dodeljujemo Triple listu
-                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
-                            groupMembers = tempList
-                        }
+                    } catch (e: Exception) {
+                        Log.e("ChatterMembersBUG", "Greška u poleru članova: ${e.message}", e)
                     }
-                } catch (e: Exception) {
-                    Log.e("ChatterMembersBUG", "Pukao mrežni poziv za članove: ${e.message}", e)
+
+                    // Sačekaj 3 sekunde pre sledeće provere baze podataka
+                    kotlinx.coroutines.delay(3000)
                 }
             }
         }
+
         // --- 2. PRIKAZ ČETA UNUTAR SELEKTOVANE GRUPE (POPRAVLJENA STRUKTURA BARA) ---
         Column(modifier = Modifier.fillMaxSize().background(Color(0xFFF5F5F5))) {
             Row(
@@ -354,7 +346,8 @@ fun GroupsScreen(
                         }
                     } // Zatvara Box ispravno
                 } // Zatvara desni Row dugmića ispravno
-            } // Zatvara gornji plavi Row ispravno
+            } // Preostali kod ispod nastavlja nesmetano...
+            // Zatvara gornji plavi Row ispravno
 
 // --- SREDIŠNJI DEO: MODERNI BALONČIĆI SA AUTOMATSKIM SKROLOM ---
             LazyColumn(
