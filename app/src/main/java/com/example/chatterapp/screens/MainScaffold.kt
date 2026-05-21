@@ -46,9 +46,15 @@ fun MainScaffold(
     listState: androidx.compose.foundation.lazy.LazyListState,
     sendChatMessage: suspend (String, String, Int) -> Boolean
 ) {
+    // 🛠️ FIX 1: Promenljiva je vraćena na sam početak funkcije, pre Scaffold-a!
+    var isInsidePrivateChat by remember { mutableStateOf(false) }
+
     Scaffold(
         bottomBar = {
-            if (currentTab != Tab.GROUPS || activeGroupId == 0) {
+            val prikaziMeniZaGrupe = currentTab != Tab.GROUPS || activeGroupId == 0
+            val prikaziMeniZaPrivatne = !isInsidePrivateChat
+
+            if (prikaziMeniZaGrupe && prikaziMeniZaPrivatne) {
                 NavigationBar(containerColor = Color.White) {
                     NavigationBarItem(
                         icon = { Icon(Icons.Default.Home, contentDescription = "Početna") },
@@ -144,21 +150,20 @@ fun MainScaffold(
                     )
                 }
                 Tab.PRIVATE -> {
-                    // Pozivanje screen-a za privatne poruke!
+                    // 🛠️ FIX 2: Povezujemo onChatToggle callback koji direktno kontroliše sakrivanje menija!
                     PrivateScreen(
                         currentUsername = currentUsername,
-                        client = client
+                        client = client,
+                        onChatToggle = { isInsidePrivateChat = it }
                     )
                 }
-
+                // 🛠️ FIX 3: Vraćena FRIENDS grana koja je falila i rušila celi build!
                 Tab.FRIENDS -> {
-                    // Otvaramo potpuno funkcionalan ekran za prijatelje!
                     FriendsScreen(
                         currentUsername = currentUsername,
                         client = client
                     )
                 }
-
             }
         }
     }

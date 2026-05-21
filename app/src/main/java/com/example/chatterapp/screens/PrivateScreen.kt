@@ -49,7 +49,8 @@ data class AndroidPrivateChat(
 @Composable
 fun PrivateScreen(
     currentUsername: String,
-    client: HttpClient
+    client: HttpClient,
+    onChatToggle: (Boolean) -> Unit
 ) {
     // Držanje stanja privatnog četa
     var chatsList by remember { mutableStateOf(listOf<AndroidPrivateChat>()) }
@@ -116,6 +117,7 @@ fun PrivateScreen(
 
     // --- 2. POLING ZA ISTORIJU PORUKA (Radi samo kada uđeš u čet sa nekim) ---
     LaunchedEffect(activeChatUserId) {
+        onChatToggle(activeChatUserId != 0)
         if (activeChatUserId != 0) {
             while (activeChatUserId != 0) {
                 try {
