@@ -152,10 +152,13 @@ fun MainScaffold(
                 }
 
                 Tab.FRIENDS -> {
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text("Prijatelji (U izradi)")
-                    }
+                    // Otvaramo potpuno funkcionalan ekran za prijatelje!
+                    FriendsScreen(
+                        currentUsername = currentUsername,
+                        client = client
+                    )
                 }
+
             }
         }
     }

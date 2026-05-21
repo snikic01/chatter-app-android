@@ -47,5 +47,14 @@ object NetworkConfig {
     fun getPrivateSeenApiUrl(): String =
         "${BASE_URL}api_private.php"
 
+    // 5. UPRAVLJANJE PRIJATELJIMA
 
+    fun getFriendsUrl(username: String): String =
+        "${BASE_URL}api_friends.php?action=list&username=$username"
+
+    fun getFriendsApiUrl(): String =
+        "${BASE_URL}api_friends.php"
+
+    fun getFriendSuggestionsUrl(username: String): String =
+        "${BASE_URL}api_friends.php?action=suggestions&username=$username"
 }
