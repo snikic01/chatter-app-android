@@ -84,7 +84,10 @@ fun GroupsScreen(
     LaunchedEffect(newMemberUsername) {
         if (newMemberUsername.length >= 2) { // Pokreće pretragu tek kad ukucaš bar 2 slova
             try {
-                val url = com.example.chatterapp.data.NetworkConfig.getSearchUsersUrl(activeGroupId, newMemberUsername.trim())
+                val url = com.example.chatterapp.data.NetworkConfig.getSearchUsersUrl(
+                    activeGroupId,
+                    newMemberUsername.trim()
+                )
                 val response = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
                     client.get(url)
                 }
@@ -144,7 +147,14 @@ fun GroupsScreen(
     if (activeGroupId == 0) {
         // --- 1. PRIKAZ LISTE TVOJIH GRUPA (SA REPLICIRANIM WEB FILTEROM) ---
         Scaffold(
-            topBar = { TopAppBar(title = { Text("Izaberi Čet Grupu", fontWeight = FontWeight.Bold) }) }
+            topBar = {
+                TopAppBar(title = {
+                    Text(
+                        "Izaberi Čet Grupu",
+                        fontWeight = FontWeight.Bold
+                    )
+                })
+            }
         ) { paddingValues ->
             LazyColumn(
                 modifier = Modifier
@@ -169,8 +179,17 @@ fun GroupsScreen(
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Column {
-                                Text(text = group.name, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF2196F3))
-                                Text(text = if (group.isOwner) "Ti si vlasnik" else "Član si grupe", fontSize = 12.sp, color = Color.Gray)
+                                Text(
+                                    text = group.name,
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF2196F3)
+                                )
+                                Text(
+                                    text = if (group.isOwner) "Ti si vlasnik" else "Član si grupe",
+                                    fontSize = 12.sp,
+                                    color = Color.Gray
+                                )
                             }
 
                             // --- CRVENI BADGE ZA NEPROČITANE PORUKE (Isto kao na veb aplikaciji) ---
@@ -208,14 +227,18 @@ fun GroupsScreen(
             if (showMembersDialog && activeGroupId != 0) {
                 try {
                     val url = com.example.chatterapp.data.NetworkConfig.getMembersUrl(activeGroupId)
-                    val response = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                        client.get(url)
-                    }
+                    val response =
+                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                            client.get(url)
+                        }
 
                     val json = JSONObject(response.bodyAsText())
 
                     // LOG ZA DIJAGNOSTIKU: Ispisaće nam u Logcat tačan JSON koji Linux server šalje!
-                    Log.d("ChatterMembersBUG", "Odgovor servera za članove: ${response.bodyAsText()}")
+                    Log.d(
+                        "ChatterMembersBUG",
+                        "Odgovor servera za članove: ${response.bodyAsText()}"
+                    )
 
                     if (json.optBoolean("success", false) || json.has("members")) {
                         val array = json.getJSONArray("members")
@@ -225,9 +248,14 @@ fun GroupsScreen(
                             val obj = array.getJSONObject(i)
 
                             // BEZBEDNO ČITANJE: Proveravamo i mala i velika slova da ključ ne promaši!
-                            val idString = if (obj.has("id")) obj.getString("id") else obj.optString("Id", "0")
+                            val idString =
+                                if (obj.has("id")) obj.getString("id") else obj.optString("Id", "0")
                             val realId = idString.toIntOrNull() ?: 0
-                            val realName = if (obj.has("username")) obj.getString("username") else obj.optString("Username", "Nepoznato")
+                            val realName =
+                                if (obj.has("username")) obj.getString("username") else obj.optString(
+                                    "Username",
+                                    "Nepoznato"
+                                )
                             val isOnline = obj.optInt("is_online", 0) == 1
 
                             tempList.add(Triple(realId, realName, isOnline))
@@ -255,10 +283,19 @@ fun GroupsScreen(
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     IconButton(onClick = { onGroupChange(0) }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Nazad", tint = Color.White)
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Nazad",
+                            tint = Color.White
+                        )
                     }
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text(text = currentGroup?.name ?: "Grupa ID: $activeGroupId", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                    Text(
+                        text = currentGroup?.name ?: "Grupa ID: $activeGroupId",
+                        color = Color.White,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -268,7 +305,11 @@ fun GroupsScreen(
 
                     Box {
                         IconButton(onClick = { showMenu = true }) {
-                            Icon(Icons.Default.MoreVert, contentDescription = "Opcije", tint = Color.White)
+                            Icon(
+                                Icons.Default.MoreVert,
+                                contentDescription = "Opcije",
+                                tint = Color.White
+                            )
                         }
                         DropdownMenu(
                             expanded = showMenu,
@@ -278,7 +319,13 @@ fun GroupsScreen(
                             // 1. OPCIJA ZA SVE (I vlasnik i običan član mogu uvek da napuste grupu i prenesu vlast)
                             DropdownMenuItem(
                                 text = { Text("Napusti grupu", color = Color.DarkGray) },
-                                leadingIcon = { Icon(Icons.Default.ExitToApp, contentDescription = null, tint = Color.DarkGray) },
+                                leadingIcon = {
+                                    Icon(
+                                        Icons.Default.ExitToApp,
+                                        contentDescription = null,
+                                        tint = Color.DarkGray
+                                    )
+                                },
                                 onClick = {
                                     onGroupChange(-activeGroupId * 100)
                                     showMenu = false
@@ -288,8 +335,20 @@ fun GroupsScreen(
                             // 2. DODATNA OPCIJA (Garantovano se iscrtava vlasniku na tri tačke jer je struktura popravljena)
                             if (isOwnerOfCurrentGroup) {
                                 DropdownMenuItem(
-                                    text = { Text("Obriši grupu (Za sve)", color = Color.Red, fontWeight = FontWeight.Bold) },
-                                    leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null, tint = Color.Red) },
+                                    text = {
+                                        Text(
+                                            "Obriši grupu (Za sve)",
+                                            color = Color.Red,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    },
+                                    leadingIcon = {
+                                        Icon(
+                                            Icons.Default.Delete,
+                                            contentDescription = null,
+                                            tint = Color.Red
+                                        )
+                                    },
                                     onClick = {
                                         onGroupChange(-activeGroupId)
                                         showMenu = false
@@ -319,7 +378,8 @@ fun GroupsScreen(
 
                     // --- 1. PREGRADNICA ZA DATUM ---
                     // Prikazuje se ako je prva poruka u četu ili ako je datum drugačiji od prethodne poruke
-                    val prikaziPregradnicu = index == 0 || messagesList[index - 1].date.substringBefore(" ") != trenutniDatum
+                    val prikaziPregradnicu =
+                        index == 0 || messagesList[index - 1].date.substringBefore(" ") != trenutniDatum
 
                     if (prikaziPregradnicu) {
                         Row(
@@ -330,7 +390,10 @@ fun GroupsScreen(
                             horizontalArrangement = Arrangement.Center
                         ) {
                             // Leva linija pregradnice
-                            Spacer(modifier = Modifier.weight(1f).height(1.dp).background(Color(0xFFDDDDDD)))
+                            Spacer(
+                                modifier = Modifier.weight(1f).height(1.dp)
+                                    .background(Color(0xFFDDDDDD))
+                            )
 
                             // Tekst sa datumom
                             Text(
@@ -342,7 +405,10 @@ fun GroupsScreen(
                             )
 
                             // Desna linija pregradnice
-                            Spacer(modifier = Modifier.weight(1f).height(1.dp).background(Color(0xFFDDDDDD)))
+                            Spacer(
+                                modifier = Modifier.weight(1f).height(1.dp)
+                                    .background(Color(0xFFDDDDDD))
+                            )
                         }
                     }
 
@@ -393,7 +459,8 @@ fun GroupsScreen(
                                         modifier = Modifier.align(Alignment.End)
                                     ) {
                                         // Izvlačimo samo sate i minute iz formata datuma
-                                        val vreme = chatMessage.date.substringAfter(" ").substringBeforeLast(":")
+                                        val vreme = chatMessage.date.substringAfter(" ")
+                                            .substringBeforeLast(":")
                                         Text(
                                             text = vreme.ifBlank { "00:00" },
                                             fontSize = 10.sp,
@@ -405,11 +472,13 @@ fun GroupsScreen(
                                             Spacer(modifier = Modifier.width(4.dp))
 
                                             // Filtriramo tvoje ime (da ne piše da si ti video svoju poruku)
-                                            val ostaliKorisnici = chatMessage.seenBy.filter { it != currentUsername }
+                                            val ostaliKorisnici =
+                                                chatMessage.seenBy.filter { it != currentUsername }
 
                                             if (ostaliKorisnici.isNotEmpty()) {
                                                 // Spajamo sva imena u jedan string razdvojen zarezom (npr. "nikic, petar")
-                                                val imenaKojiSuVideli = ostaliKorisnici.joinToString(", ")
+                                                val imenaKojiSuVideli =
+                                                    ostaliKorisnici.joinToString(", ")
 
                                                 Text(
                                                     text = "✓ ($imenaKojiSuVideli)",
@@ -427,10 +496,23 @@ fun GroupsScreen(
                 }
             }
 
-            Row(modifier = Modifier.fillMaxWidth().background(Color.White).padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                OutlinedTextField(value = textInput, onValueChange = onTextInputChange, placeholder = { Text("Upiši poruku...") }, modifier = Modifier.weight(1f).padding(end = 8.dp), shape = RoundedCornerShape(24.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth().background(Color.White).padding(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                OutlinedTextField(
+                    value = textInput,
+                    onValueChange = onTextInputChange,
+                    placeholder = { Text("Upiši poruku...") },
+                    modifier = Modifier.weight(1f).padding(end = 8.dp),
+                    shape = RoundedCornerShape(24.dp)
+                )
                 IconButton(onClick = onSendMessageClick, enabled = textInput.isNotBlank()) {
-                    Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Pošalji", tint = Color(0xFF2196F3))
+                    Icon(
+                        Icons.AutoMirrored.Filled.Send,
+                        contentDescription = "Pošalji",
+                        tint = Color(0xFF2196F3)
+                    )
                 }
             }
         }
@@ -441,82 +523,135 @@ fun GroupsScreen(
             onDismissRequest = {
                 showMembersDialog = false
                 newMemberUsername = "" // Čistimo polje pri zatvaranju
+                userSuggestions = emptyList()
             },
             title = { Text("Upravljanje članovima", fontWeight = FontWeight.Bold) },
             text = {
                 Column(modifier = Modifier.fillMaxWidth().padding(4.dp)) {
 
-                    // === 1. POLJE ZA DODAVANJE NOVOG ČLANA ===
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        OutlinedTextField(
-                            value = newMemberUsername,
-                            onValueChange = { newMemberUsername = it },
-                            label = { Text("Korisničko ime") },
-                            placeholder = { Text("npr. petar") },
-                            modifier = Modifier.weight(1f),
-                            singleLine = true
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        IconButton(
-                            onClick = {
-                                if (newMemberUsername.isNotBlank()) {
-                                    coroutineScope.launch(kotlinx.coroutines.Dispatchers.IO) {
-                                        try {
-                                            val url = com.example.chatterapp.data.NetworkConfig.getAddMemberApiUrl()
-                                            val jsonBody = JSONObject().apply {
-                                                put("action", "add")
-                                                put("username", currentUsername) // Tvoj user da prođe ruter
-                                                put("group_id", activeGroupId)
-                                                put("new_member_username", newMemberUsername.trim())
-                                            }.toString()
+                    // === 1. POLJE ZA DODAVANJE NOVOG ČLANA SA PRETRAGOM ===
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            OutlinedTextField(
+                                value = newMemberUsername,
+                                onValueChange = { newMemberUsername = it },
+                                label = { Text("Korisničko ime") },
+                                placeholder = { Text("npr. petar") },
+                                modifier = Modifier.weight(1f),
+                                singleLine = true
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            IconButton(
+                                onClick = {
+                                    if (newMemberUsername.isNotBlank()) {
+                                        coroutineScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                                            try {
+                                                val url =
+                                                    com.example.chatterapp.data.NetworkConfig.getAddMemberApiUrl()
+                                                val jsonBody = JSONObject().apply {
+                                                    put("action", "add")
+                                                    put("username", currentUsername)
+                                                    put("group_id", activeGroupId)
+                                                    put(
+                                                        "new_member_username",
+                                                        newMemberUsername.trim()
+                                                    )
+                                                }.toString()
 
-                                            val response = client.post(url) {
-                                                contentType(io.ktor.http.ContentType.Application.Json)
-                                                setBody(jsonBody)
-                                            }
+                                                val response = client.post(url) {
+                                                    contentType(io.ktor.http.ContentType.Application.Json)
+                                                    setBody(jsonBody)
+                                                }
 
-                                            val jsonResult = JSONObject(response.bodyAsText())
-                                            if (jsonResult.optBoolean("success", false)) {
-                                                // Ako je uspešno dodat, odmah vučemo svežu Triple listu sa servera da ga iscrtamo
-                                                val svezUrl = com.example.chatterapp.data.NetworkConfig.getMembersUrl(activeGroupId)
-                                                val svezRes = client.get(svezUrl)
-                                                val svezJson = JSONObject(svezRes.bodyAsText())
-                                                if (svezJson.optBoolean("success", false)) {
-                                                    val arr = svezJson.getJSONArray("members")
-                                                    val osvezenSpisak = mutableListOf<Triple<Int, String, Boolean>>()
-                                                    for (i in 0 until arr.length()) {
-                                                        val o = arr.getJSONObject(i)
-                                                        val idStr = o.optString("id", "0")
-                                                        osvezenSpisak.add(Triple(idStr.toIntOrNull() ?: 0, o.optString("username", "Korisnik"), o.optInt("is_online", 0) == 1))
-                                                    }
-                                                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
-                                                        groupMembers = osvezenSpisak
-                                                        newMemberUsername = "" // Čistimo polje za kucanje
+                                                val jsonResult = JSONObject(response.bodyAsText())
+                                                if (jsonResult.optBoolean("success", false)) {
+                                                    val svezUrl =
+                                                        com.example.chatterapp.data.NetworkConfig.getMembersUrl(
+                                                            activeGroupId
+                                                        )
+                                                    val svezRes = client.get(svezUrl)
+                                                    val svezJson = JSONObject(svezRes.bodyAsText())
+                                                    if (svezJson.optBoolean("success", false)) {
+                                                        val arr = svezJson.getJSONArray("members")
+                                                        val osvezenSpisak =
+                                                            mutableListOf<Triple<Int, String, Boolean>>()
+                                                        for (i in 0 until arr.length()) {
+                                                            val o = arr.getJSONObject(i)
+                                                            val idStr = o.optString("id", "0")
+                                                            osvezenSpisak.add(
+                                                                Triple(
+                                                                    idStr.toIntOrNull() ?: 0,
+                                                                    o.optString(
+                                                                        "username",
+                                                                        "Korisnik"
+                                                                    ),
+                                                                    o.optInt("is_online", 0) == 1
+                                                                )
+                                                            )
+                                                        }
+                                                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                                                            groupMembers = osvezenSpisak
+                                                            newMemberUsername = ""
+                                                            userSuggestions = emptyList()
+                                                        }
                                                     }
                                                 }
+                                            } catch (e: Exception) {
+                                                Log.e(
+                                                    "ChatterMembers",
+                                                    "Greška pri dodavanju: ${e.message}"
+                                                )
                                             }
-                                        } catch (e: Exception) {
-                                            Log.e("ChatterMembers", "Greška pri dodavanju: ${e.message}")
                                         }
                                     }
                                 }
+                            ) {
+                                Text(
+                                    text = "+",
+                                    fontSize = 24.sp,
+                                    fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                                    color = Color(0xFF2196F3)
+                                )
                             }
-                        ) {
-                            // Zameni ceo unutrašnji Icon blok ovim tekstom:
-                            Text(
-                                text = "+",
-                                fontSize = 24.sp,
-                                fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
-                                color = Color(0xFF2196F3) // Prelepa plava boja za dodavanje
-                            )
+                        }
+
+                        // === SUGESTIJE (Iscrtavaju se dinamički ispod input polja) ===
+                        if (userSuggestions.isNotEmpty()) {
+                            Card(
+                                modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                                shape = RoundedCornerShape(8.dp),
+                                colors = CardDefaults.cardColors(containerColor = Color(0xFFEEEEEE)),
+                                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                            ) {
+                                Column(modifier = Modifier.padding(4.dp)) {
+                                    userSuggestions.forEach { predlozenoIme ->
+                                        Text(
+                                            text = predlozenoIme,
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .clickable {
+                                                    newMemberUsername = predlozenoIme
+                                                    userSuggestions = emptyList()
+                                                }
+                                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                                            fontSize = 15.sp,
+                                            color = Color.Black
+                                        )
+                                    }
+                                }
+                            }
                         }
                     }
 
                     Spacer(modifier = Modifier.height(16.dp))
-                    Text("Svi registrovani članovi u ovoj grupi:", color = Color.Gray, fontSize = 14.sp)
+                    Text(
+                        "Svi registrovani članovi u ovoj grupi:",
+                        color = Color.Gray,
+                        fontSize = 14.sp
+                    )
                     Spacer(modifier = Modifier.height(8.dp))
 
                     // === 2. LISTA ČLANOVA SA LAMPICAMA I KANTOM ===
@@ -528,7 +663,6 @@ fun GroupsScreen(
                             item { Text("Učitavanje članova...", color = Color.Gray) }
                         } else {
                             items(groupMembers) { clan ->
-                                // Pravilno raspakujemo Triple (tri podatka umesto dva!)
                                 val userId = clan.first
                                 val username = clan.second
                                 val isOnline = clan.third
@@ -543,18 +677,18 @@ fun GroupsScreen(
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
-                                        // --- ONLINE STATUS LAMPICA (Zelena ili siva krug) ---
                                         Box(
                                             modifier = Modifier
                                                 .size(10.dp)
                                                 .background(
-                                                    color = if (isOnline) Color(0xFF4CAF50) else Color(0xFF9E9E9E),
+                                                    color = if (isOnline) Color(0xFF4CAF50) else Color(
+                                                        0xFF9E9E9E
+                                                    ),
                                                     shape = androidx.compose.foundation.shape.CircleShape
                                                 )
                                         )
                                         Spacer(modifier = Modifier.width(10.dp))
 
-                                        // Prikazujemo ime člana
                                         Text(
                                             text = username,
                                             fontSize = 16.sp,
@@ -563,12 +697,12 @@ fun GroupsScreen(
                                         )
                                     }
 
-                                    // KANTA ZA IZBACIVANJE (Samo za vlasnika grupe)
                                     if (jesteVlasnikGrupe && !daLiSamToJa) {
                                         IconButton(onClick = {
                                             coroutineScope.launch(kotlinx.coroutines.Dispatchers.IO) {
                                                 try {
-                                                    val url = com.example.chatterapp.data.NetworkConfig.getMembersApiUrl()
+                                                    val url =
+                                                        com.example.chatterapp.data.NetworkConfig.getMembersApiUrl()
                                                     val jsonBody = JSONObject().apply {
                                                         put("action", "kick")
                                                         put("username", currentUsername)
@@ -581,13 +715,17 @@ fun GroupsScreen(
                                                         setBody(jsonBody)
                                                     }
 
-                                                    val jsonResult = JSONObject(response.bodyAsText())
+                                                    val jsonResult =
+                                                        JSONObject(response.bodyAsText())
                                                     if (jsonResult.optBoolean("success", false)) {
-                                                        // Popravljen filter koji radi sa Triple strukturom podataka
-                                                        groupMembers = groupMembers.filter { it.first != userId }
+                                                        groupMembers =
+                                                            groupMembers.filter { it.first != userId }
                                                     }
                                                 } catch (e: Exception) {
-                                                    Log.e("ChatterMembers", "Greška pri kikovnju: ${e.message}")
+                                                    Log.e(
+                                                        "ChatterMembers",
+                                                        "Greška pri kikovnju: ${e.message}"
+                                                    )
                                                 }
                                             }
                                         }) {
@@ -608,9 +746,9 @@ fun GroupsScreen(
                 Button(onClick = {
                     showMembersDialog = false
                     newMemberUsername = ""
+                    userSuggestions = emptyList()
                 }) { Text("Zatvori") }
             }
         )
     }
-
 }
