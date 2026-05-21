@@ -21,4 +21,8 @@ object NetworkConfig {
     // Rute za usere u grupama i kikovanje
     fun getMembersUrl(groupId: Int): String = "${BASE_URL}api_groups.php?action=members&group_id=$groupId"
     fun getMembersApiUrl(): String = "${BASE_URL}api_groups.php"
+
+    // dodavanje ljudi u grupe
+    fun getAddMemberApiUrl(): String = "${BASE_URL}api_groups.php"
+
 }
