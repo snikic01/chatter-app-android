@@ -138,30 +138,40 @@ fun GroupsScreen(
             if (showMembersDialog && activeGroupId != 0) {
                 try {
                     val url = com.example.chatterapp.data.NetworkConfig.getMembersUrl(activeGroupId)
-
-                    // POPRAVLJENO: Tačan naziv je withContext (sa malim w i velikim C)
                     val response = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                        // POPRAVLJENO: Tačan poziv funkcije je client.get(url)
                         client.get(url)
                     }
 
                     val json = JSONObject(response.bodyAsText())
-                    if (json.optBoolean("success", false)) {
+
+                    // LOG ZA DIJAGNOSTIKU: Ispisaće nam u Logcat tačan JSON koji Linux server šalje!
+                    Log.d("ChatterMembersBUG", "Odgovor servera za članove: ${response.bodyAsText()}")
+
+                    if (json.optBoolean("success", false) || json.has("members")) {
                         val array = json.getJSONArray("members")
                         val tempList = mutableListOf<Pair<Int, String>>()
+
                         for (i in 0 until array.length()) {
                             val obj = array.getJSONObject(i)
-                            tempList.add(Pair(obj.getInt("id"), obj.getString("username")))
+
+                            // BEZBEDNO ČITANJE: Proveravamo i mala i velika slova da ključ ne promaši!
+                            val realId = if (obj.has("id")) obj.getInt("id") else obj.optInt("Id", 0)
+                            val realName = if (obj.has("username")) obj.getString("username") else obj.optString("Username", "Nepoznato")
+
+                            tempList.add(Pair(realId, realName))
                         }
-                        groupMembers = tempList
+
+                        // Vraćamo se na glavnu nit i punimo listu — tekst "Učitavanje..." trenutno nestaje!
+                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                            groupMembers = tempList
+                        }
                     }
                 } catch (e: Exception) {
-                    android.util.Log.e("ChatterMembers", "Greška pri učitavanju članova: ${e.message}")
+                    // Ako Ktor baci grešku (npr. Timeout ili Malformed JSON), odmah ćemo videti u crvenoj boji
+                    Log.e("ChatterMembersBUG", "Pukao mrežni poziv za članove: ${e.message}", e)
                 }
             }
         }
-
-
         // --- 2. PRIKAZ ČETA UNUTAR SELEKTOVANE GRUPE (POPRAVLJENA STRUKTURA BARA) ---
         Column(modifier = Modifier.fillMaxSize().background(Color(0xFFF5F5F5))) {
             Row(
