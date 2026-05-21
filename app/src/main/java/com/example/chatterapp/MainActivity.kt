@@ -344,7 +344,6 @@ class MainActivity : ComponentActivity() {
                                             activeGroupId = activeGroupId,
                                             onGroupChange = { idSign ->
                                                 coroutineScope.launch {
-                                                    // Koristimo tvoj centralizovani BASE_URL iz NetworkConfig-a (HTTPS, bez portova)
                                                     val baseUrl = com.example.chatterapp.data.NetworkConfig.BASE_URL
 
                                                     if (idSign == 0) {
@@ -353,7 +352,6 @@ class MainActivity : ComponentActivity() {
                                                         messagesList = emptyList()
                                                     } else if (idSign < 0) {
                                                         val actualGroupId = kotlin.math.abs(idSign)
-                                                        // Putanja do api_groups.php preko tvog NetworkConfig-a
                                                         val url = baseUrl + "api_groups.php"
 
                                                         Log.d("ChatterBUG", "KLIKNUT IZLAZ! idSign: $idSign, Izračunat realId grupe: ${actualGroupId / 100}, Trenutni ulogovani user: ${currentUsername.value}")
@@ -361,7 +359,7 @@ class MainActivity : ComponentActivity() {
                                                         kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
                                                             try {
                                                                 if (actualGroupId >= 100) {
-                                                                    // KORISNIK NAPUŠTA GRUPU (Deli se sa 100 da se dobije realan ID)
+                                                                    // KORISNIK NAPUŠTA GRUPU
                                                                     val realId = actualGroupId / 100
                                                                     val jsonBody = JSONObject().apply {
                                                                         put("action", "leave")
@@ -374,7 +372,7 @@ class MainActivity : ComponentActivity() {
                                                                         setBody(jsonBody)
                                                                     }
                                                                 } else {
-                                                                    // VLASNIK BRIŠE CELU GRUPU TRAJNO IZ BAZE
+                                                                    // VLASNIK BRIŠE CELU GRUPU
                                                                     val jsonBody = JSONObject().apply {
                                                                         put("action", "delete")
                                                                         put("group_id", actualGroupId)
@@ -390,16 +388,24 @@ class MainActivity : ComponentActivity() {
                                                                 Log.e("ChatterBUG", "Greška pri napuštanju/brisanju: ${e.message}")
                                                             }
                                                         }
-                                                        activeGroupId = 0 // Osvežava ekran i vraća na listu grupa koja će sada biti očišćena!
+                                                        activeGroupId = 0
                                                     } else {
-                                                        // KORISNIK OTVARA OBIČAN ČET GRUPE (ID je pozitivan, npr. 8 ili 19)
+                                                        // KORISNIK OTVARA OBIČAN ČET GRUPE
                                                         activeGroupId = idSign
                                                         messagesList = emptyList()
 
-                                                        // ŠALJEMO ISPRAVAN SEEN STATUS I ODMAH OSVEŽAVAMO LISTU GRUPA DA NESTANE KRUŽIĆ
+                                                        // FIX: Instant brišemo crveni kružić lokalno u memoriji telefona!
+                                                        groupsList = groupsList.map { grupa ->
+                                                            if (grupa.id == idSign) {
+                                                                grupa.copy(unreadCount = 0)
+                                                            } else {
+                                                                grupa
+                                                            }
+                                                        }
+
+                                                        // ŠALJEMO SEEN STATUS NA SERVER U POZADINI
                                                         kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
                                                             try {
-                                                                // 1. Koristimo novu funkciju iz NetworkConfig-a (siguran HTTPS)
                                                                 val seenUrl = com.example.chatterapp.data.NetworkConfig.getSeenUrl()
                                                                 val jsonBody = JSONObject().apply {
                                                                     put("action", "mark")
@@ -412,7 +418,7 @@ class MainActivity : ComponentActivity() {
                                                                     setBody(jsonBody)
                                                                 }
 
-                                                                // 2. Čim server potvrdi primanje, odmah povlačimo novu listu grupa sa unread_count = 0
+                                                                // Povlačimo osveženu listu sa servera radi potvrde
                                                                 val savedUser = sessionManager.getSavedUsername() ?: currentUsername.value
                                                                 val urlGroups = com.example.chatterapp.data.NetworkConfig.getGroupsUrl(savedUser)
                                                                 val responseGroups = client.get(urlGroups)
@@ -437,13 +443,12 @@ class MainActivity : ComponentActivity() {
                                                                         )
                                                                     }
 
-                                                                    // Vraćamo se na glavnu nit da instant ažuriramo ekran i sklonimo kružić
                                                                     kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
                                                                         groupsList = list
                                                                     }
                                                                 }
                                                             } catch (e: Exception) {
-                                                                Log.e("ChatterSeen", "Greška pri slanju seen statusa ili osvežavanju: ${e.message}")
+                                                                Log.e("ChatterSeen", "Greška pri slanju seen statusa: ${e.message}")
                                                             }
                                                         }
                                                     }
