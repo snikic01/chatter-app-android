@@ -107,6 +107,12 @@ fun GroupsScreen(
             }
         }
     } else {
+        // Čim se lista poruka promeni ili napuni, automatski skrolujemo na poslednju stavku
+        LaunchedEffect(messagesList.size) {
+            if (messagesList.isNotEmpty()) {
+                listState.animateScrollToItem(messagesList.size - 1)
+            }
+        }
         // --- 2. PRIKAZ ČETA UNUTAR SELEKTOVANE GRUPE (POPRAVLJENA STRUKTURA BARA) ---
         Column(modifier = Modifier.fillMaxSize().background(Color(0xFFF5F5F5))) {
             Row(
@@ -167,41 +173,82 @@ fun GroupsScreen(
                 } // Zatvara desni Row dugmića ispravno
             } // Zatvara celi plavi gornji Row ispravno
 
-            LazyColumn(
+            // ... (ovde se završava plavi gornji Row bara koji si poslao) ...
 
+// --- SREDIŠNJI DEO: MODERNI BALONČIĆI SA AUTOMATSKIM SKROLOM ---
+            LazyColumn(
                 state = listState,
-                modifier = Modifier.weight(1f).fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f) // Ovo tera listu da zauzme sav prostor između bara i polja za unos
+                    .padding(horizontal = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                items(messagesList) { msg ->
-                    val isMyMessage = msg.username.trim().lowercase() == currentUsername.trim().lowercase()
-                    Box(modifier = Modifier.fillMaxWidth(), contentAlignment = if (isMyMessage) Alignment.CenterEnd else Alignment.CenterStart) {
-                        Card(
-                            colors = CardDefaults.cardColors(containerColor = if (isMyMessage) Color(0xFF2196F3) else Color.White),
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.fillMaxWidth(0.75f)
-                        ) {
-                            Column(modifier = Modifier.padding(12.dp)) {
-                                Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
-                                    Text(text = if (isMyMessage) "Ti" else msg.username, fontWeight = FontWeight.Bold, color = if (isMyMessage) Color.White else Color(0xFF2196F3), fontSize = 13.sp)
-                                    Text(text = msg.date, color = if (isMyMessage) Color(0xFFE0E0E0) else Color.Gray, fontSize = 10.sp)
-                                }
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Text(text = msg.message, color = if (isMyMessage) Color.White else Color.Black, fontSize = 15.sp)
+                items(messagesList) { chatMessage ->
+                    val isMe = chatMessage.username == currentUsername
 
-                                // --- POLOŽAJ SEEN STATUS-A UNUTAR BALONČIĆA ---
-                                if (msg.seenBy.isNotEmpty()) {
-                                    Spacer(modifier = Modifier.height(6.dp))
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.End
-                                    ) {
-                                        Text(
-                                            text = "✓ Viđeno: ${msg.seenBy.joinToString(", ")}",
-                                            fontSize = 11.sp,
-                                            color = if (isMyMessage) Color(0xFFD1E8FF) else Color(0xFF757575),
-                                            fontWeight = FontWeight.Medium
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = if (isMe) Arrangement.End else Arrangement.Start
+                    ) {
+                        Column(
+                            horizontalAlignment = if (isMe) Alignment.End else Alignment.Start,
+                            modifier = Modifier.fillMaxWidth(0.85f)
+                        ) {
+                            if (!isMe) {
+                                Text(
+                                    text = chatMessage.username,
+                                    fontSize = 12.sp,
+                                    color = Color.Gray,
+                                    modifier = Modifier.padding(start = 6.dp, bottom = 2.dp)
+                                )
+                            }
+
+                            // --- GLAVNI BALONČIĆ ---
+                            Box(
+                                modifier = Modifier
+                                    .background(
+                                        color = if (isMe) Color(0xFF2196F3) else Color(0xFFE0E0E0),
+                                        shape = androidx.compose.foundation.shape.RoundedCornerShape(
+                                            topStart = 16.dp,
+                                            topEnd = 16.dp,
+                                            bottomStart = if (isMe) 16.dp else 2.dp,
+                                            bottomEnd = if (isMe) 2.dp else 16.dp
                                         )
+                                    )
+                                    .padding(horizontal = 12.dp, vertical = 8.dp)
+                            ) {
+                                Column {
+                                    Text(
+                                        text = chatMessage.message,
+                                        color = if (isMe) Color.White else Color.Black,
+                                        fontSize = 16.sp
+                                    )
+
+                                    Spacer(modifier = Modifier.height(4.dp))
+
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.End,
+                                        modifier = Modifier.align(Alignment.End)
+                                    ) {
+                                        // Izvlačimo samo sate i minute iz "YYYY-MM-DD HH:MM:SS" formata
+                                        val vreme = chatMessage.date.substringAfter(" ").substringBeforeLast(":")
+                                        Text(
+                                            text = vreme.ifBlank { "00:00" },
+                                            fontSize = 10.sp,
+                                            color = if (isMe) Color(0xFFBBDEFB) else Color.Gray
+                                        )
+
+                                        if (isMe && chatMessage.seenBy.isNotEmpty()) {
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text(
+                                                text = "✓",
+                                                fontSize = 10.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = Color(0xFFB2FF59)
+                                            )
+                                        }
                                     }
                                 }
                             }
