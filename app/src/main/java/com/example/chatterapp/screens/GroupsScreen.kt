@@ -1,5 +1,10 @@
 package com.example.chatterapp.screens
 
+import org.json.JSONObject
+import io.ktor.client.statement.bodyAsText
+import androidx.compose.runtime.setValue
+import io.ktor.client.request.get
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -47,13 +52,19 @@ fun GroupsScreen(
     listState: LazyListState,
     activeGroupId: Int,
     onGroupChange: (Int) -> Unit,
-    groupsList: List<AndroidChatGroup>
+    groupsList: List<AndroidChatGroup>,
+    client: io.ktor.client.HttpClient // DODAT PARAMETAR KLIJENTA
 ) {
     var showMembersDialog by remember { mutableStateOf(false) }
     var showMenu by remember { mutableStateOf(false) }
 
     val currentGroup = groupsList.find { it.id == activeGroupId }
     val isOwnerOfCurrentGroup = currentGroup?.isOwner ?: false
+
+    // DODATA PROMENLJIVA ZA ČLANOVE KOJA JE FALILA (Linija 135 sa slike)
+    var groupMembers by remember { mutableStateOf<List<Pair<Int, String>>>(emptyList()) }
+    val coroutineScope = rememberCoroutineScope()
+
 
     if (activeGroupId == 0) {
         // --- 1. PRIKAZ LISTE TVOJIH GRUPA (SA REPLICIRANIM WEB FILTEROM) ---
@@ -115,6 +126,36 @@ fun GroupsScreen(
                 listState.animateScrollToItem(messagesList.size - 1)
             }
         }
+
+        // --- DODATO: POZIV ZA ČLANOVE (Ujedinjuje vlasnika i korisnike preko api_groups.php) ---
+        LaunchedEffect(showMembersDialog) {
+            if (showMembersDialog && activeGroupId != 0) {
+                try {
+                    val url = com.example.chatterapp.data.NetworkConfig.getMembersUrl(activeGroupId)
+
+                    // POPRAVLJENO: Tačan naziv je withContext (sa malim w i velikim C)
+                    val response = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                        // POPRAVLJENO: Tačan poziv funkcije je client.get(url)
+                        client.get(url)
+                    }
+
+                    val json = JSONObject(response.bodyAsText())
+                    if (json.optBoolean("success", false)) {
+                        val array = json.getJSONArray("members")
+                        val tempList = mutableListOf<Pair<Int, String>>()
+                        for (i in 0 until array.length()) {
+                            val obj = array.getJSONObject(i)
+                            tempList.add(Pair(obj.getInt("id"), obj.getString("username")))
+                        }
+                        groupMembers = tempList
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.e("ChatterMembers", "Greška pri učitavanju članova: ${e.message}")
+                }
+            }
+        }
+
+
         // --- 2. PRIKAZ ČETA UNUTAR SELEKTOVANE GRUPE (POPRAVLJENA STRUKTURA BARA) ---
         Column(modifier = Modifier.fillMaxSize().background(Color(0xFFF5F5F5))) {
             Row(
@@ -152,7 +193,6 @@ fun GroupsScreen(
                                 text = { Text("Napusti grupu", color = Color.DarkGray) },
                                 leadingIcon = { Icon(Icons.Default.ExitToApp, contentDescription = null, tint = Color.DarkGray) },
                                 onClick = {
-                                    // POPRAVLJENO: Prvo okidamo slanje pa tek onda gasimo meni da nit ne pukne!
                                     onGroupChange(-activeGroupId * 100)
                                     showMenu = false
                                 }
@@ -164,7 +204,6 @@ fun GroupsScreen(
                                     text = { Text("Obriši grupu (Za sve)", color = Color.Red, fontWeight = FontWeight.Bold) },
                                     leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null, tint = Color.Red) },
                                     onClick = {
-                                        // POPRAVLJENO: Prvo okidamo slanje pa tek onda gasimo meni da nit ne pukne!
                                         onGroupChange(-activeGroupId)
                                         showMenu = false
                                     }
@@ -173,9 +212,7 @@ fun GroupsScreen(
                         }
                     } // Zatvara Box ispravno
                 } // Zatvara desni Row dugmića ispravno
-            } // Zatvara celi plavi gornji Row ispravno
-
-            // ... (ovde se završava plavi gornji Row bara koji si poslao) ...
+            } // Zatvara gornji plavi Row ispravno
 
 // --- SREDIŠNJI DEO: MODERNI BALONČIĆI SA AUTOMATSKIM SKROLOM ---
             LazyColumn(
