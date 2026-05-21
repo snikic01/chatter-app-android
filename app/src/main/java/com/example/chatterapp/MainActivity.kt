@@ -130,13 +130,21 @@ class MainActivity : ComponentActivity() {
                                         for (i in 0 until array.length()) {
                                             val obj = array.getJSONObject(i)
                                             val isOwner = obj.optInt("is_owner", 0) == 1
+                                            val tvojaGrupaId = obj.getInt("id")
+
+                                            // OSIGURANJE: Ako korisnik trenutno gleda ovaj čet, brojač je za njega lokalno uvek 0!
+                                            val stvarniUnreadCount = if (tvojaGrupaId == activeGroupId) {
+                                                0
+                                            } else {
+                                                obj.optInt("unread_count", 0)
+                                            }
 
                                             list.add(
                                                 com.example.chatterapp.screens.AndroidChatGroup(
-                                                    id = obj.getInt("id"),
+                                                    id = tvojaGrupaId,
                                                     name = obj.getString("name"),
                                                     isOwner = isOwner,
-                                                    unreadCount = obj.optInt("unread_count", 0),
+                                                    unreadCount = stvarniUnreadCount, // Koristimo pametni brojač
                                                     ownerName = obj.optString("owner_name", "")
                                                 )
                                             )
@@ -188,6 +196,7 @@ class MainActivity : ComponentActivity() {
                         }
                     }
                 }
+
 
                 when (currentScreen) {
                     Screen.LOGIN -> {
