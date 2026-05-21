@@ -17,4 +17,8 @@ object NetworkConfig {
 
     // Funkcija za dobijanje tačnog URL-a za označavanje poruka kao pročitanih
     fun getSeenUrl(): String = "${BASE_URL}api_seen.php"
+
+    // Rute za usere u grupama i kikovanje
+    fun getMembersUrl(groupId: Int): String = "${BASE_URL}api_groups.php?action=members&group_id=$groupId"
+    fun getMembersApiUrl(): String = "${BASE_URL}api_groups.php"
 }
