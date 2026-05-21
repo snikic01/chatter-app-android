@@ -59,8 +59,13 @@ fun GroupsScreen(
     activeGroupId: Int,
     onGroupChange: (Int) -> Unit,
     groupsList: List<AndroidChatGroup>,
-    client: io.ktor.client.HttpClient // DODAT PARAMETAR KLIJENTA
+    client: io.ktor.client.HttpClient, // Dodat parametar za klijenta
+    // DODATI PARAMETRI ZA POLJE:
+    newMemberUsername: String,
+    onNewMemberUsernameChange: (String) -> Unit,
+    onAddMemberClick: () -> Unit
 ) {
+
     var showMembersDialog by remember { mutableStateOf(false) }
     var showMenu by remember { mutableStateOf(false) }
 
@@ -72,6 +77,34 @@ fun GroupsScreen(
     var groupMembers by remember { mutableStateOf<List<Triple<Int, String, Boolean>>>(emptyList()) }
     var newMemberUsername by remember { mutableStateOf("") } // Polje za unos novog člana u dijalogu
     val coroutineScope = rememberCoroutineScope()
+
+    var userSuggestions by remember { mutableStateOf<List<String>>(emptyList()) }
+
+// Skeniramo šta korisnik kuca i na svaku promenu slova pitamo server za predloge
+    LaunchedEffect(newMemberUsername) {
+        if (newMemberUsername.length >= 2) { // Pokreće pretragu tek kad ukucaš bar 2 slova
+            try {
+                val url = com.example.chatterapp.data.NetworkConfig.getSearchUsersUrl(activeGroupId, newMemberUsername.trim())
+                val response = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    client.get(url)
+                }
+                val json = JSONObject(response.bodyAsText())
+                if (json.optBoolean("success", false)) {
+                    val array = json.getJSONArray("users")
+                    val tempList = mutableListOf<String>()
+                    for (i in 0 until array.length()) {
+                        tempList.add(array.getString(i))
+                    }
+                    userSuggestions = tempList
+                }
+            } catch (e: Exception) {
+                userSuggestions = emptyList()
+            }
+        } else {
+            userSuggestions = emptyList() // Ako obriše tekst, praznimo predloge
+        }
+    }
+
 
     // --- OSVEŽEN POZIV: Čita i is_online status sa tvog modularnog backenda ---
     LaunchedEffect(showMembersDialog) {

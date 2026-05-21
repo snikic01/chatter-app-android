@@ -25,4 +25,9 @@ object NetworkConfig {
     // dodavanje ljudi u grupe
     fun getAddMemberApiUrl(): String = "${BASE_URL}api_groups.php"
 
+    // Ruta za sugestiju dodavanja korisnika:
+
+    fun getSearchUsersUrl(groupId: Int, query: String): String = "${BASE_URL}api_groups.php?action=search_users&group_id=$groupId&query=$query"
+
+
 }
