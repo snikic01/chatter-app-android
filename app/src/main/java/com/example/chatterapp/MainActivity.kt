@@ -392,14 +392,13 @@ class MainActivity : ComponentActivity() {
                                                         }
                                                         activeGroupId = 0 // Osvežava ekran i vraća na listu grupa koja će sada biti očišćena!
                                                     } else {
-                                                        // KORISNIK OTVARA OBIČAN ČET GRUPE (ID je pozitivan, npr. 8 ili 19)
+                                                        // KORISNIK OTVARA OBIČAN ČET GRUPE
                                                         activeGroupId = idSign
                                                         messagesList = emptyList()
 
-                                                        // ŠALJEMO ISPRAVAN SEEN STATUS NA SERVER U POZADINI
-                                                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                                                        // Samo šaljemo informaciju serveru u pozadini, bez diranja groupsList-a ovde!
+                                                        coroutineScope.launch(kotlinx.coroutines.Dispatchers.IO) {
                                                             try {
-                                                                // Koristimo funkciju iz NetworkConfig-a za siguran HTTPS
                                                                 val seenUrl = com.example.chatterapp.data.NetworkConfig.getSeenUrl()
                                                                 val jsonBody = JSONObject().apply {
                                                                     put("action", "mark")
@@ -416,7 +415,6 @@ class MainActivity : ComponentActivity() {
                                                             }
                                                         }
                                                     }
-
                                                 }
                                             },
                                             groupsList = groupsList
