@@ -58,33 +58,33 @@ object NetworkConfig {
     fun getFriendSuggestionsUrl(username: String): String =
         "${BASE_URL}api_friends.php?action=suggestions&username=$username"
 
-    // ================= POPRAVLJENE RUTE ZA DASHBOARD (DODAT /php/) =================
+    // ================= ISPRAVLJENE RUTE ZA DASHBOARD =================
 
     fun getDashboardDataUrl(userId: Int, username: String): String =
-        "${BASE_URL}php/chatter-app-3.0/api_dashboard.php?action=list&user_id=$userId&username=$username"
+        "${BASE_URL}api_dashboard.php?action=list&user_id=$userId&username=$username"
 
     fun getToggleLikeUrl(userId: Int, postId: Int): String =
-        "${BASE_URL}php/chatter-app-3.0/api_dashboard.php?action=like_toggle&user_id=$userId&post_id=$postId"
+        "${BASE_URL}api_dashboard.php?action=like_toggle&user_id=$userId&post_id=$postId"
 
     fun getCommentsUrl(userId: Int, postId: Int): String =
-        "${BASE_URL}php/chatter-app-3.0/api_dashboard.php?action=comments_list&user_id=$userId&post_id=$postId"
+        "${BASE_URL}api_dashboard.php?action=comments_list&user_id=$userId&post_id=$postId"
 
     fun getAddCommentUrl(userId: Int, postId: Int, commentText: String): String =
-        "${BASE_URL}php/chatter-app-3.0/api_dashboard.php?action=comment_add&user_id=$userId&post_id=$postId&comment_text=$commentText"
+        "${BASE_URL}api_dashboard.php?action=comment_add&user_id=$userId&post_id=$postId&comment_text=$commentText"
 
     fun getEditCommentUrl(userId: Int, commentId: Int, commentText: String): String =
-        "${BASE_URL}php/chatter-app-3.0/api_dashboard.php?action=comment_edit&user_id=$userId&comment_id=$commentId&comment_text=$commentText"
+        "${BASE_URL}api_dashboard.php?action=comment_edit&user_id=$userId&comment_id=$commentId&comment_text=$commentText"
 
     fun getDeleteCommentUrl(userId: Int, commentId: Int): String =
-        "${BASE_URL}php/chatter-app-3.0/api_dashboard.php?action=comment_delete&user_id=$userId&comment_id=$commentId"
+        "${BASE_URL}api_dashboard.php?action=comment_delete&user_id=$userId&comment_id=$commentId"
 
     fun getAdminLogsUrl(userId: Int): String =
-        "${BASE_URL}php/chatter-app-3.0/api_dashboard.php?action=admin_logs&user_id=$userId"
+        "${BASE_URL}api_dashboard.php?action=admin_logs&user_id=$userId"
 
     fun getAddPostUrl(userId: Int, username: String, title: String, content: String, boardColor: String): String =
-        "${BASE_URL}php/chatter-app-3.0/api_dashboard.php?action=post_add&user_id=$userId&username=$username&title=$title&content=$content&board_color=$boardColor"
+        "${BASE_URL}api_dashboard.php?action=post_add&user_id=$userId&username=$username&title=$title&content=$content&board_color=$boardColor"
 
     fun getDeletePostUrl(userId: Int, username: String, postId: Int): String =
-        "${BASE_URL}php/chatter-app-3.0/api_dashboard.php?action=post_delete&user_id=$userId&username=$username&post_id=$postId"
+        "${BASE_URL}api_dashboard.php?action=post_delete&user_id=$userId&username=$username&post_id=$postId"
 
 }
