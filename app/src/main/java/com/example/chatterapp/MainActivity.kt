@@ -70,13 +70,22 @@ class MainActivity : ComponentActivity() {
                     mutableStateOf(if (sessionManager.isLoggedIn()) Screen.CHAT else Screen.LOGIN)
                 }
 
-                LaunchedEffect(Unit) {
+                var currentTab by remember { mutableStateOf(Tab.DASHBOARD) }
+
+                // POPRAVLJENO: Slušamo promene ekrana i taba. Čim se korisnik uloguje,
+                // ime se odmah osvežava u UI-ju i Dashboard povlači sveže podatke sa servera!
+                LaunchedEffect(currentScreen, currentTab) {
                     if (sessionManager.isLoggedIn()) {
-                        currentUsername.value = sessionManager.getSavedUsername() ?: ""
+                        val sačuvanoIme = sessionManager.getSavedUsername() ?: ""
+                        currentUsername.value = sačuvanoIme
+
+                        // Ako je korisnik uspešno ulogovan i nalazi se na Dashboardu, osveži podatke
+                        if (currentTab == Tab.DASHBOARD) {
+                            dashboardViewModel.loadDashboardData()
+                        }
                     }
                 }
 
-                var currentTab by remember { mutableStateOf(Tab.DASHBOARD) }
                 var messagesList by remember { mutableStateOf(listOf<ChatMessage>()) }
                 var groupsList by remember { mutableStateOf(listOf<com.example.chatterapp.screens.AndroidChatGroup>()) }
                 var textInput by remember { mutableStateOf("") }

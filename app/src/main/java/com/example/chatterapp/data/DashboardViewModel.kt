@@ -34,14 +34,35 @@ class DashboardViewModel(
     val currentUsername: String = authViewModel.getSavedUsername() ?: ""
 
     // Pomoćna funkcija za izvršavanje HTTP GET/POST zahteva na serveru u pozadini
+    // Popravljeno: Potpuno asinhroni mrežni poziv sa timeout-om koji ne blokira telefon
     private suspend fun sendHttpRequest(urlString: String): String = withContext(Dispatchers.IO) {
+        var connection: java.net.HttpURLConnection? = null
         try {
-            URL(urlString).readText()
+            val url = URL(urlString)
+            connection = url.openConnection() as java.net.HttpURLConnection
+            connection.requestMethod = "GET"
+            connection.connectTimeout = 5000  // Maksimalno 5 sekundi za povezivanje
+            connection.readTimeout = 5000     // Maksimalno 5 sekundi za čitanje podataka
+            connection.doInput = true
+
+            // Čitanje odgovora u baferu
+            val reader = java.io.BufferedReader(java.io.InputStreamReader(connection.inputStream))
+            val response = StringBuilder()
+            var line: String?
+            while (reader.readLine().also { line = it } != null) {
+                response.append(line)
+            }
+            reader.close()
+            response.toString()
         } catch (e: Exception) {
             e.printStackTrace()
-            "{\"success\":false, \"message\":\"Greška u konekciji\"}"
+            // Vraćamo prazan JSON uspeh kako aplikacija ne bi ostala u zamrznutom stanju
+            "{\"success\":false, \"posts\":[], \"comments\":[], \"message\":\"Greska u mrezi\"}"
+        } finally {
+            connection?.disconnect()
         }
     }
+
 
     fun loadDashboardData() {
         viewModelScope.launch {
