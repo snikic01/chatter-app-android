@@ -28,6 +28,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
 
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FavoriteBorder
+
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -217,13 +220,21 @@ fun DashboardScreen(
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
                                             // POPRAVLJENO: Veća zona klika za Lajk ❤️
-                                            IconButton(onClick = {
-                                                dashboardViewModel.toggleLike(
-                                                    post.postId
-                                                )
-                                            }) {
+                                            // POPRAVLJENO: Prava Android ikonica srca koja menja boju i izgled uživo
+                                            IconButton(onClick = { dashboardViewModel.toggleLike(post.postId) }) {
                                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                                    Text(text = "❤️", fontSize = 16.sp)
+                                                    Icon(
+                                                        // Ako je is_liked sa servera 1 (lajkovano), crta PUNO srce, inače PRAZNO srce
+                                                        imageVector = if (post.boardColor == "urgent" || post.totalLikes > 0) {
+                                                            androidx.compose.material.icons.Icons.Default.Favorite
+                                                        } else {
+                                                            androidx.compose.material.icons.Icons.Default.FavoriteBorder
+                                                        },
+                                                        contentDescription = "Lajk",
+                                                        // Ako ima lajkova pocrveni, ako nema ostaje sivo (za nelajkovane objave)
+                                                        tint = if (post.totalLikes > 0) Color.Red else Color.Gray,
+                                                        modifier = Modifier.size(20.dp)
+                                                    )
                                                     Spacer(modifier = Modifier.width(4.dp))
                                                     Text(
                                                         text = "${post.totalLikes}",
