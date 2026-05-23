@@ -133,10 +133,10 @@ fun PrivateScreen(
                         for (i in 0 until array.length()) {
                             val obj = array.getJSONObject(i)
 
-                            // POPRAVLJENO MAPIRANJE: Koristimo ključ "sent_at" koji tvoj PHP fetch šalje za datum!
-                            val vremeSlanja = obj.optString("sent_at", "")
+                            // Čitamo ključ "sent_at" koji tvoj novi PHP skript šalje za datum
+                            val vremePoruke = obj.optString("sent_at", "")
 
-                            // Za privatni čet stavljamo da piše "Vidjeno" ako poruka pripada tebi, radi lepšeg UI-ja
+                            // Čitamo da li poruka pripada tebi
                             val isMine = obj.optBoolean("is_mine", false)
                             val seenList = if (isMine) listOf("Vidjeno") else emptyList()
 
@@ -144,7 +144,7 @@ fun PrivateScreen(
                                 ChatMessage(
                                     username = obj.getString("username"),
                                     message = obj.getString("message"),
-                                    date = vremeSlanja, // Usaglašeno sa sent_at sa servera!
+                                    date = vremePoruke, // Prosleđeno u model bez pucanja
                                     seenBy = seenList
                                 )
                             )
@@ -158,6 +158,7 @@ fun PrivateScreen(
             }
         }
     }
+
 
     // --- AUTOMATSKI SKROL NA KRAJ PRIVATNOG ČETA ---
     LaunchedEffect(privateMessagesList.size) {
