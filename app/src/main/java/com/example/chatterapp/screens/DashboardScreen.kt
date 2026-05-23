@@ -8,7 +8,9 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
+import androidx.compose.material.icons.filled.Create
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -20,7 +22,6 @@ import androidx.compose.ui.unit.sp
 import com.example.chatterapp.data.AuthViewModel
 import com.example.chatterapp.data.DashboardViewModel
 import androidx.compose.ui.window.Dialog
-import androidx.compose.foundation.lazy.items
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -246,6 +247,10 @@ fun DashboardScreen(
 
                     LazyColumn(modifier = Modifier.weight(1f).padding(vertical = 8.dp)) {
                         items(comments) { comment ->
+                            // Držimo stanje da li trenutno menjamo ovaj konkretni komentar
+                            var isEditing by remember { mutableStateOf(false) }
+                            var editText by remember { mutableStateOf(comment.commentText) }
+
                             Column(modifier = Modifier.padding(vertical = 4.dp).fillMaxWidth()) {
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
@@ -254,20 +259,64 @@ fun DashboardScreen(
                                 ) {
                                     Text(comment.commenterName, fontWeight = FontWeight.Bold, color = Color(0xFF2196F3))
 
-                                    // Korisnik briše svoj, a Admin može bilo čiji komentar
-                                    if (isAdmin || dashboardViewModel.currentUserId == comment.userId) {
-                                        IconButton(
-                                            onClick = { dashboardViewModel.deleteComment(postId, comment.id) },
-                                            modifier = Modifier.size(24.dp)
-                                        ) {
-                                            Icon(Icons.Default.Delete, contentDescription = "Obriši", tint = Color.Red)
+                                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                        // Samo admin ili autor komentara mogu da menjaju i brišu
+                                        if (isAdmin || dashboardViewModel.currentUserId == comment.userId) {
+                                            // 1. Olovka za Izmenu
+                                            IconButton(
+                                                onClick = { isEditing = !isEditing },
+                                                modifier = Modifier.size(24.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = androidx.compose.material.icons.Icons.Default.Edit,
+                                                    contentDescription = "Izmeni",
+                                                    tint = Color.Gray
+                                                )
+                                            }
+
+                                            // 2. Kanta za Brisanje
+                                            IconButton(
+                                                onClick = { dashboardViewModel.deleteComment(postId, comment.id) },
+                                                modifier = Modifier.size(24.dp)
+                                            ) {
+                                                Icon(Icons.Default.Delete, contentDescription = "Obriši", tint = Color.Red)
+                                            }
                                         }
                                     }
                                 }
-                                Text(comment.commentText, fontSize = 14.sp)
+
+                                if (isEditing) {
+                                    // Polje za izmenu teksta komentara
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        OutlinedTextField(
+                                            value = editText,
+                                            onValueChange = { editText = it },
+                                            modifier = Modifier.weight(1f),
+                                            textStyle = androidx.compose.ui.text.TextStyle(fontSize = 13.sp)
+                                        )
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Button(
+                                            onClick = {
+                                                // POZIV FUNKCIJE: Aktivira tvoju do sada neiskorišćenu funkciju!
+                                                dashboardViewModel.editComment(postId, comment.id, editText)
+                                                isEditing = false
+                                            },
+                                            modifier = Modifier.height(38.dp)
+                                        ) {
+                                            Text("Sačuvaj", fontSize = 11.sp)
+                                        }
+                                    }
+                                } else {
+                                    // Običan prikaz teksta komentara ako se ne edituje
+                                    Text(comment.commentText, fontSize = 14.sp)
+                                }
                                 HorizontalDivider(modifier = Modifier.padding(top = 4.dp))
                             }
                         }
+
                     }
 
                     Row(

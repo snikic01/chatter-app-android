@@ -70,6 +70,8 @@ class DashboardViewModel(
             try {
                 val url = NetworkConfig.getDashboardDataUrl(currentUserId, currentUsername)
                 val jsonResponse = sendHttpRequest(url)
+                // DODAJ SAMO OVU LINIJU OVDE:
+                android.util.Log.d("ChatterBUG", "Sirovi JSON sa servera: $jsonResponse")
                 val jsonObject = JSONObject(jsonResponse)
 
                 if (jsonObject.optBoolean("success", false)) {

@@ -49,4 +49,8 @@ dependencies {
     // Ktor biblioteke za mrežu
     implementation("io.ktor:ktor-client-core:2.3.11")
     implementation("io.ktor:ktor-client-android:2.3.11")
+
+    // Ikonice
+    implementation("androidx.compose.material:material-icons-extended:1.7.0")
+
 }
