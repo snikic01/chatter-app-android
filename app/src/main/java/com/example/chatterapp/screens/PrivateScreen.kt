@@ -40,7 +40,7 @@ import org.json.JSONObject
 data class AndroidPrivateChat(
     val id: Int,
     val username: String,
-    val isOnline: Boolean,
+    val isOnline: Boolean, // Fabrički Boolean
     val lastMessage: String,
     val unreadCount: Int
 )
@@ -61,85 +61,64 @@ fun PrivateScreen(
     var privateMessagesList by remember { mutableStateOf(listOf<ChatMessage>()) }
     var privateTextInput by remember { mutableStateOf("") }
 
-    // Searchbar:
+    // Searchbar i POPRAVLJEN FILTER PRIJATELJA:
+    // Zadržavamo fabrički stabilan API, a na ekranu ostaju SAMO oni koji ti jesu prihvaćeni prijatelji (sa kojima imaš poruke)
     var searchQuery by remember { mutableStateOf("") }
-    val filtriraniČatovi = chatsList.filter {
-        it.username.contains(searchQuery, ignoreCase = true)
+    val filtriraniČatovi = chatsList.filter { chat ->
+        val prolaziPretragu = chat.username.contains(searchQuery, ignoreCase = true)
+        val daLiJePrijatelj = chat.lastMessage != "Nema poruka. Započni čet!" && chat.lastMessage != "Nema poruka"
+        prolaziPretragu && daLiJePrijatelj
     }
-
 
     val coroutineScope = rememberCoroutineScope()
     val privateListState = rememberLazyListState()
 
-    // --- 1. KONAČNO POPRAVLJEN POLING ZA PRIVATNE ČETOVE ---
+    // --- 1. KONAČNO POPRAVLJEN POLING ZA LISTU PRIVATNIH ČETOVA (Svake 3 sekunde) ---
     LaunchedEffect(Unit) {
         while (true) {
             try {
                 val url = NetworkConfig.getPrivateChatsUrl(currentUsername)
                 val response = withContext(Dispatchers.IO) { client.get(url) }
-                val responseText = response.bodyAsText()
-
-                // Štampamo sirovi odgovor u Logcat pod oznakom ChatterBUG
-                android.util.Log.d("ChatterBUG", "Privatni Cetovi Odgovor: $responseText")
-
-                val json = JSONObject(responseText)
+                val json = JSONObject(response.bodyAsText())
 
                 if (json.optBoolean("success", false)) {
-                    val array = json.optJSONArray("chats")
+                    val array = json.getJSONArray("chats")
                     val tempList = mutableListOf<AndroidPrivateChat>()
 
-                    if (array != null) {
-                        for (i in 0 until array.length()) {
-                            val obj = array.getJSONObject(i)
+                    for (i in 0 until array.length()) {
+                        val obj = array.getJSONObject(i)
+                        val chatUserId = obj.getInt("id")
 
-                            // Bezbedno čitamo ID (bilo da je broj ili tekst)
-                            val rawId = obj.opt("id")
-                            val chatUserId = when (rawId) {
-                                is Number -> rawId.toInt()
-                                is String -> rawId.toIntOrNull() ?: 0
-                                else -> 0
-                            }
+                        // Ako korisnik trenutno gleda ovaj čet, nepročitane poruke su 0
+                        val stvarniUnread = if (chatUserId == activeChatUserId) 0 else obj.optInt("unread_count", 0)
 
-                            // Bezbedno čitamo unread_count
-                            val rawUnread = obj.opt("unread_count")
-                            val unreadNum = when (rawUnread) {
-                                is Number -> rawUnread.toInt()
-                                is String -> rawUnread.toIntOrNull() ?: 0
-                                else -> 0
-                            }
-                            val stvarniUnread = if (chatUserId == activeChatUserId) 0 else unreadNum
-
-                            // BEZBEDNA PROVERA STATUS LAMPICE (Čita 1, "1", true ili false bez pucanja)
-                            val rawOnline = obj.opt("is_online")
-                            val onlineStatus = when (rawOnline) {
-                                is Boolean -> rawOnline
-                                is Number -> rawOnline.toInt() == 1
-                                is String -> rawOnline == "1" || rawOnline.equals("true", ignoreCase = true)
-                                else -> false
-                            }
-
-                            tempList.add(
-                                AndroidPrivateChat(
-                                    id = chatUserId,
-                                    username = obj.optString("username", "Korisnik"),
-                                    isOnline = onlineStatus, // Vraća čist Boolean za lampicu
-                                    lastMessage = obj.optString("last_message", "Nema poruka"),
-                                    unreadCount = stvarniUnread
-                                )
+                        tempList.add(
+                            AndroidPrivateChat(
+                                id = chatUserId,
+                                username = obj.getString("username"),
+                                // POPRAVLJENO: Koristimo optInt i proveravamo da li je jednako 1 da dobijemo čisti Boolean za lampicu!
+                                isOnline = obj.optInt("is_online", 0) == 1,
+                                lastMessage = obj.optString("last_message", "Nema poruka"),
+                                unreadCount = stvarniUnread
                             )
-                        }
+                        )
                     }
-                    // Punimo interfejs na ekranu telefona
                     chatsList = tempList
+
+                    // Ako je otvoren čet, ažuriramo online status u gornjem baru uživo
+                    val trenutniChat = tempList.find { it.id == activeChatUserId }
+                    if (trenutniChat != null) {
+                        activeChatUserOnline = trenutniChat.isOnline
+                    }
                 }
             } catch (e: Exception) {
-                android.util.Log.e("ChatterBUG", "Greška u parsiranju: ${e.message}")
-                e.printStackTrace()
+                Log.e("PrivateChats", "Greška u poleru lista: ${e.message}")
             }
             delay(3000)
         }
     }
-    // --- 2. POPRAVLJEN POLING ZA ISTORIJU PORUKA ---
+
+    // --- 2. POLING ZA ISTORIJU PORUKA ---
     LaunchedEffect(activeChatUserId) {
         onChatToggle(activeChatUserId != 0)
         if (activeChatUserId != 0) {
@@ -167,7 +146,7 @@ fun PrivateScreen(
                                 ChatMessage(
                                     username = obj.getString("username"),
                                     message = obj.getString("message"),
-                                    date = vremePoruke, // Prosleđeno u model bez pucanja
+                                    date = vremePoruke,
                                     seenBy = seenList
                                 )
                             )
@@ -182,13 +161,13 @@ fun PrivateScreen(
         }
     }
 
-
     // --- AUTOMATSKI SKROL NA KRAJ PRIVATNOG ČETA ---
     LaunchedEffect(privateMessagesList.size) {
         if (privateMessagesList.isNotEmpty()) {
             privateListState.animateScrollToItem(privateMessagesList.size - 1)
         }
     }
+
 
     // --- GLAVNI UI RENDER ---
     if (activeChatUserId == 0) {
