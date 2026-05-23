@@ -2,10 +2,6 @@ package com.example.chatterapp.data // Prilagodi svom paketu ako treba
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.chatterapp.data.model.AdminLog
-import com.example.chatterapp.data.model.DashboardPost
-import com.example.chatterapp.data.model.DashboardComment
-import com.example.chatterapp.data.network.DashboardApiService
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
