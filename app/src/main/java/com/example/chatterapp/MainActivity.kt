@@ -1,5 +1,7 @@
 package com.example.chatterapp
 
+import com.example.chatterapp.data.DashboardViewModel
+
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
@@ -174,6 +176,7 @@ class MainActivity : ComponentActivity() {
                                 currentUsername.value = ""
                                 currentScreen = Screen.LOGIN
                             },
+                            dashboardViewModel = dashboardViewModel,
                             messagesList = messagesList,
                             onMessagesListChange = { messagesList = it },
                             textInput = textInput,
