@@ -135,6 +135,7 @@ class MainActivity : ComponentActivity() {
                                         }
                                         withContext(Dispatchers.Main) { groupsList = list }
                                     }
+                                    kotlinx.coroutines.delay(3000)
 
                                     // --- 2. OSVEŽAVANJE PORUKA UNUTAR ČETA ---
                                     if (activeGroupId != 0) {
