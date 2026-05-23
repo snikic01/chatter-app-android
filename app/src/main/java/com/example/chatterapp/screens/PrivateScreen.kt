@@ -71,66 +71,80 @@ fun PrivateScreen(
     val coroutineScope = rememberCoroutineScope()
     val privateListState = rememberLazyListState()
 
-    // --- 1. POPRAVLJEN POLING ZA LISTU PRIVATNIH ČETOVA ---
-    // --- 1. POPRAVLJEN I OSIGURAN POLING ZA PRIVATNE ČETOVA ---
+    // --- 1. KONAČNO POPRAVLJEN POLING ZA LISTU PRIVATNIH ČETOVA ---
     LaunchedEffect(Unit) {
         while (true) {
             try {
-                // POPRAVLJENO: Koristimo SessionManager ili ugrađeni kontekst da osiguramo ime!
-                // Ako tvoja aplikacija koristi sessionManager promenljivu, pročitaj ime ovako:
-                val sigurnoUlogovanoIme = "nikic" // Privremeni test: upiši 'nikic' pod navodnicima da proverimo!
-
-                // Pravo rešenje ako imaš pristup sessionManager-u:
-                // val sigurnoUlogovanoIme = sessionManager.getSavedUsername() ?: currentUsername
-
-                val url = NetworkConfig.getPrivateChatsUrl(sigurnoUlogovanoIme)
+                val url = NetworkConfig.getPrivateChatsUrl(currentUsername)
                 val response = withContext(Dispatchers.IO) { client.get(url) }
                 val json = JSONObject(response.bodyAsText())
 
                 if (json.optBoolean("success", false)) {
-                    val array = json.getJSONArray("chats")
+                    val array = json.optJSONArray("chats")
                     val tempList = mutableListOf<AndroidPrivateChat>()
 
-                    for (i in 0 until array.length()) {
-                        val obj = array.getJSONObject(i)
-                        val chatUserId = obj.getInt("id")
+                    if (array != null) {
+                        for (i in 0 until array.length()) {
+                            val obj = array.getJSONObject(i)
 
-                        // Ako korisnik trenutno gleda ovaj čet, nepročitane poruke su 0
-                        val stvarniUnread = if (chatUserId == activeChatUserId) 0 else obj.optInt("unread_count", 0)
+                            // POPRAVLJENO SIGURNO ČITANJE ID-ja (Čita i ako je broj i ako je string)
+                            val rawId = obj.opt("id")
+                            val chatUserId = when (rawId) {
+                                is Number -> rawId.toInt()
+                                is String -> rawId.toIntOrNull() ?: 0
+                                else -> 0
+                            }
 
-                        // POPRAVLJENO SIGURNO ČITANJE: Pretvara bilo koji tip (Int, String) sa servera u čist Boolean
-                        val rawOnline = obj.opt("is_online")
-                        val onlineStatus = when (rawOnline) {
-                            is Boolean -> rawOnline
-                            is Number -> rawOnline.toInt() == 1
-                            is String -> rawOnline == "1" || rawOnline.equals("true", ignoreCase = true)
-                            else -> false
-                        }
+                            // POPRAVLJENO SIGURNO ČITANJE UNREAD COUNT-a
+                            val rawUnread = obj.opt("unread_count")
+                            val unreadNum = when (rawUnread) {
+                                is Number -> rawUnread.toInt()
+                                is String -> rawUnread.toIntOrNull() ?: 0
+                                else -> 0
+                            }
+                            val stvarniUnread = if (chatUserId == activeChatUserId) 0 else unreadNum
 
-                        tempList.add(
-                            AndroidPrivateChat(
-                                id = chatUserId,
-                                username = obj.getString("username"),
-                                isOnline = onlineStatus, // Sada bezbedno upisuje Boolean bez rušenja aplikacije
-                                lastMessage = obj.optString("last_message", "Nema poruka"),
-                                unreadCount = stvarniUnread
+                            // POPRAVLJENO SIGURNO ČITANJE ONLINE STATUS LAMPICE
+                            val rawOnline = obj.opt("is_online")
+                            val onlineStatus = when (rawOnline) {
+                                is Boolean -> rawOnline
+                                is Number -> rawOnline.toInt() == 1
+                                is String -> rawOnline == "1" || rawOnline.equals("true", ignoreCase = true)
+                                else -> false
+                            }
+
+                            // POPRAVLJENO SIGURNO ČITANJE TEKSTA PORUKE
+                            val zadnjaPoruka = obj.optString("last_message", "Nema poruka")
+
+                            tempList.add(
+                                AndroidPrivateChat(
+                                    id = chatUserId,
+                                    username = obj.optString("username", "Korisnik"),
+                                    isOnline = onlineStatus,
+                                    lastMessage = zadnjaPoruka,
+                                    unreadCount = stvarniUnread
+                                )
                             )
-                        )
+                        }
                     }
+                    // Tek kada petlja prođe bez ijednog JSON poretka, punimo interfejs
                     chatsList = tempList
 
-                    // Ako je otvoren čet, ažuriramo online status u gornjem baru uživo
+                    // Ažuriramo online status u gornjem baru uživo
                     val trenutniChat = tempList.find { it.id == activeChatUserId }
                     if (trenutniChat != null) {
                         activeChatUserOnline = trenutniChat.isOnline
                     }
                 }
             } catch (e: Exception) {
-                Log.e("PrivateChats", "Greška u poleru lista: ${e.message}")
+                // Štampamo tačnu grešku u Logcat ako i dalje negde zapne
+                Log.e("PrivateChats", "Kritična greška u parsiranju JSON-a: ${e.message}")
+                e.printStackTrace()
             }
             delay(3000)
         }
     }
+
 
 
     // --- 2. POPRAVLJEN POLING ZA ISTORIJU PORUKA ---
