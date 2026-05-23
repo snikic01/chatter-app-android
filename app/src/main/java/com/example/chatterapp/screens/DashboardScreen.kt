@@ -221,17 +221,14 @@ fun DashboardScreen(
                                         ) {
                                             // POPRAVLJENO: Veća zona klika za Lajk ❤️
                                             // POPRAVLJENO: Prava Android ikonica srca koja menja boju i izgled uživo
+                                            // POPRAVLJENO: Koristimo totalLikes jer isLiked ne postoji u tvom modelu objava
                                             IconButton(onClick = { dashboardViewModel.toggleLike(post.postId) }) {
                                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                                     Icon(
-                                                        // Ako je is_liked sa servera 1 (lajkovano), crta PUNO srce, inače PRAZNO srce
-                                                        imageVector = if (post.boardColor == "urgent" || post.totalLikes > 0) {
-                                                            androidx.compose.material.icons.Icons.Default.Favorite
-                                                        } else {
-                                                            androidx.compose.material.icons.Icons.Default.FavoriteBorder
-                                                        },
+                                                        // Ako objava ima lajkova, crta PUNO srce (Favorite), inače PRAZNO (FavoriteBorder)
+                                                        imageVector = if (post.totalLikes > 0) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                                                         contentDescription = "Lajk",
-                                                        // Ako ima lajkova pocrveni, ako nema ostaje sivo (za nelajkovane objave)
+                                                        // Punjeno srce bojimo u crveno, a prazno u sivo (za nelajkovane objave)
                                                         tint = if (post.totalLikes > 0) Color.Red else Color.Gray,
                                                         modifier = Modifier.size(20.dp)
                                                     )
@@ -243,6 +240,7 @@ fun DashboardScreen(
                                                     )
                                                 }
                                             }
+
 
                                             // POPRAVLJENO: Veća zona klika za Komentare 💬
                                             IconButton(onClick = {
