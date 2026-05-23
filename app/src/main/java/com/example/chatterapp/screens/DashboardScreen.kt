@@ -370,64 +370,108 @@ fun DashboardScreen(
 
                     LazyColumn(modifier = Modifier.weight(1f).padding(vertical = 8.dp)) {
                         items(comments) { comment ->
-                            // Držimo stanje da li trenutno menjamo ovaj konkretni komentar
+                            // Pratimo stanja pojedinačnog komentara unutar liste
                             var isEditing by remember { mutableStateOf(false) }
                             var editText by remember { mutableStateOf(comment.commentText) }
 
-                            Column(modifier = Modifier.padding(vertical = 4.dp).fillMaxWidth()) {
+                            // Provera: Da li je ulogovani korisnik autor ovog konkretnog komentara?
+                            val isMyComment = (dashboardViewModel.currentUserId == comment.userId)
+
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 6.dp)
+                            ) {
+                                // --- PRVI RED: IME AUTORA I AKCIJE (OLOVKA/KANTA) ---
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
+                                    // Prikazujemo ime korisnika koji je ostavio komentar
                                     Text(
-                                        comment.commenterName,
+                                        text = comment.commenterName,
                                         fontWeight = FontWeight.Bold,
                                         color = Color(0xFF2196F3)
                                     )
 
-                                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                        // Kreiramo brzu proveru da li je ovaj komentar tvoj lični
-                                        val isMyComment =
-                                            (dashboardViewModel.currentUserId == comment.userId)
-
-                                        // 1. Olovka za Izmenu: Prikazuje se SAMO ako je komentar tvoj (bilo da si običan user ili admin)
+                                    // Horizontalni niz za akcije brisanja i izmene
+                                    Row(
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        // 1. OLOVKA (IZMENA): Vidi je samo autor komentara (bilo admin ili običan korisnik)
                                         if (isMyComment) {
                                             IconButton(
                                                 onClick = { isEditing = !isEditing },
-                                                modifier = Modifier.size(24.dp)
+                                                modifier = Modifier.size(28.dp)
                                             ) {
                                                 Icon(
                                                     imageVector = androidx.compose.material.icons.Icons.Default.Create,
                                                     contentDescription = "Izmeni",
-                                                    tint = Color.Gray
+                                                    tint = Color.Gray,
+                                                    modifier = Modifier.size(18.dp)
                                                 )
                                             }
                                         }
 
-                                        // 2. Kanta za Brisanje: Prikazuje se ako je komentar tvoj ILI ako si ulogovani ADMIN
+                                        // 2. KANTA (BRISANJE): Vidi je autor komentara ILI ulogovani administrator
                                         if (isMyComment || isAdmin) {
                                             IconButton(
-                                                onClick = {
-                                                    dashboardViewModel.deleteComment(
-                                                        postId,
-                                                        comment.id
-                                                    )
-                                                },
-                                                modifier = Modifier.size(24.dp)
+                                                onClick = { dashboardViewModel.deleteComment(postId, comment.id) },
+                                                modifier = Modifier.size(28.dp)
                                             ) {
                                                 Icon(
                                                     imageVector = Icons.Default.Delete,
                                                     contentDescription = "Obriši",
-                                                    tint = Color.Red
+                                                    tint = Color.Red,
+                                                    modifier = Modifier.size(18.dp)
                                                 )
                                             }
                                         }
                                     }
-                                    HorizontalDivider(modifier = Modifier.padding(top = 4.dp))
                                 }
+
+                                // --- DRUGI RED: TEKST KOMENTARA ILI POLJE ZA IZMENU ---
+                                if (isEditing) {
+                                    // Ako je korisnik kliknuo na olovku, otvara se polje da prepravi tekst
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(top = 4.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        OutlinedTextField(
+                                            value = editText,
+                                            onValueChange = { editText = it },
+                                            modifier = Modifier.weight(1f),
+                                            textStyle = androidx.compose.ui.text.TextStyle(fontSize = 13.sp)
+                                        )
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Button(
+                                            onClick = {
+                                                dashboardViewModel.editComment(postId, comment.id, editText)
+                                                isEditing = false
+                                            },
+                                            modifier = Modifier.height(38.dp)
+                                        ) {
+                                            Text("Sačuvaj", fontSize = 11.sp)
+                                        }
+                                    }
+                                } else {
+                                    // POPRAVLJENO: Prikazujemo stvarni tekst komentara ispod imena!
+                                    Text(
+                                        text = comment.commentText,
+                                        fontSize = 14.sp,
+                                        modifier = Modifier.padding(top = 2.dp, start = 2.dp)
+                                    )
+                                }
+
+                                // Horizontalna linija između dva komentara
+                                HorizontalDivider(modifier = Modifier.padding(top = 8.dp), color = Color.LightGray.copy(alpha = 0.5f))
                             }
                         }
+
                     }
 
                     Row(
