@@ -57,4 +57,43 @@ object NetworkConfig {
 
     fun getFriendSuggestionsUrl(username: String): String =
         "${BASE_URL}api_friends.php?action=suggestions&username=$username"
+
+    // ================= RUTE ZA DASHBOARD ===================
+
+    // 1. URL za listanje svih objava na tabli i proveru admin prava
+    fun getDashboardDataUrl(userId: Int, username: String): String =
+        "${BASE_URL}api_dashboard.php?action=list&user_id=$userId&username=$username"
+
+    // 2. URL za lajkovanje / uklanjanje lajka sa objave
+    fun getToggleLikeUrl(userId: Int, postId: Int): String =
+        "${BASE_URL}api_dashboard.php?action=like_toggle&user_id=$userId&post_id=$postId"
+
+    // 3. URL za listanje svih komentara za određenu objavu
+    fun getCommentsUrl(userId: Int, postId: Int): String =
+        "${BASE_URL}api_dashboard.php?action=comments_list&user_id=$userId&post_id=$postId"
+
+    // 4. URL za dodavanje novog komentara
+    fun getAddCommentUrl(userId: Int, postId: Int, commentText: String): String =
+        "${BASE_URL}api_dashboard.php?action=comment_add&user_id=$userId&post_id=$postId&comment_text=$commentText"
+
+    // 5. URL za izmenu komentara
+    fun getEditCommentUrl(userId: Int, commentId: Int, commentText: String): String =
+        "${BASE_URL}api_dashboard.php?action=comment_edit&user_id=$userId&comment_id=$commentId&comment_text=$commentText"
+
+    // 6. URL za brisanje komentara
+    fun getDeleteCommentUrl(userId: Int, commentId: Int): String =
+        "${BASE_URL}api_dashboard.php?action=comment_delete&user_id=$userId&comment_id=$commentId"
+
+    // 7. URL za pregled administratorskih logova (Samo za admine)
+    fun getAdminLogsUrl(userId: Int): String =
+        "${BASE_URL}api_dashboard.php?action=admin_logs&user_id=$userId"
+
+    // 8. URL za kreiranje nove objave na tabli
+    fun getAddPostUrl(userId: Int, username: String, title: String, content: String, boardColor: String): String =
+        "${BASE_URL}api_dashboard.php?action=post_add&user_id=$userId&username=$username&title=$title&content=$content&board_color=$boardColor"
+
+    // 9. URL za brisanje objave sa table
+    fun getDeletePostUrl(userId: Int, username: String, postId: Int): String =
+        "${BASE_URL}api_dashboard.php?action=post_delete&user_id=$userId&username=$username&post_id=$postId"
+
 }
