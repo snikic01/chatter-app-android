@@ -370,12 +370,14 @@ fun DashboardScreen(
 
                     LazyColumn(modifier = Modifier.weight(1f).padding(vertical = 8.dp)) {
                         items(comments) { comment ->
-                            // Pratimo stanja pojedinačnog komentara unutar liste
                             var isEditing by remember { mutableStateOf(false) }
                             var editText by remember { mutableStateOf(comment.commentText) }
 
-                            // Provera: Da li je ulogovani korisnik autor ovog konkretnog komentara?
-                            val isMyComment = (dashboardViewModel.currentUserId == comment.userId)
+                            // POPRAVLJENO: Poredimo tekstualno ime autora komentara sa tvojim trenutno ulogovanim imenom!
+                            val isMyComment = (comment.commenterName == dashboardViewModel.currentUsername)
+
+                            // Admin provera (da li si ulogovan kao snikic01)
+                            val isAdmin = (dashboardViewModel.currentUsername == "snikic01")
 
                             Column(
                                 modifier = Modifier
