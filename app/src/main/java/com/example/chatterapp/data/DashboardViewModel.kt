@@ -113,7 +113,9 @@ class DashboardViewModel(
     fun toggleLike(postId: Int) {
         viewModelScope.launch {
             try {
-                val url = NetworkConfig.getToggleLikeUrl(currentUserId, postId)
+                // POPRAVLJENO: Dodat currentUsername u sredinu
+                val url = NetworkConfig.getToggleLikeUrl(currentUserId, currentUsername, postId)
+                android.util.Log.d("ChatterBUG", "Poziv za Lajk URL: $url")
                 val jsonResponse = sendHttpRequest(url)
                 val jsonObject = JSONObject(jsonResponse)
                 if (jsonObject.optBoolean("success", false)) {
@@ -128,8 +130,10 @@ class DashboardViewModel(
     fun loadComments(postId: Int) {
         viewModelScope.launch {
             try {
-                val url = NetworkConfig.getCommentsUrl(currentUserId, postId)
+                // POPRAVLJENO: Dodat currentUsername u sredinu
+                val url = NetworkConfig.getCommentsUrl(currentUserId, currentUsername, postId)
                 val jsonResponse = sendHttpRequest(url)
+                android.util.Log.d("ChatterBUG", "Poziv za Komentare URL: $url")
                 val jsonObject = JSONObject(jsonResponse)
 
                 if (jsonObject.optBoolean("success", false)) {
@@ -163,7 +167,8 @@ class DashboardViewModel(
         viewModelScope.launch {
             if (text.isBlank()) return@launch
             try {
-                val url = NetworkConfig.getAddCommentUrl(currentUserId, postId, text)
+                // POPRAVLJENO: Dodat currentUsername u sredinu
+                val url = NetworkConfig.getAddCommentUrl(currentUserId, currentUsername, postId, text)
                 val jsonResponse = sendHttpRequest(url)
                 android.util.Log.d("ChatterBUG", "Komentari JSON: $jsonResponse")
                 val jsonObject = JSONObject(jsonResponse)
