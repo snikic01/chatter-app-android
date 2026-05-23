@@ -219,17 +219,15 @@ fun DashboardScreen(
                                             horizontalArrangement = Arrangement.spacedBy(4.dp),
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
-                                            // POPRAVLJENO: Veća zona klika za Lajk ❤️
-                                            // POPRAVLJENO: Prava Android ikonica srca koja menja boju i izgled uživo
-                                            // POPRAVLJENO: Koristimo totalLikes jer isLiked ne postoji u tvom modelu objava
+                                            // POPRAVLJENO: Koristimo post.isLiked za tačan prikaz tvog ličnog lajka
                                             IconButton(onClick = { dashboardViewModel.toggleLike(post.postId) }) {
                                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                                     Icon(
-                                                        // Ako objava ima lajkova, crta PUNO srce (Favorite), inače PRAZNO (FavoriteBorder)
-                                                        imageVector = if (post.totalLikes > 0) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                                                        // Puno srce (Favorite) ako si TI lajkovao (1), inače prazno sivo (FavoriteBorder) ako nisi (0)
+                                                        imageVector = if (post.isLiked == 1) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                                                         contentDescription = "Lajk",
-                                                        // Punjeno srce bojimo u crveno, a prazno u sivo (za nelajkovane objave)
-                                                        tint = if (post.totalLikes > 0) Color.Red else Color.Gray,
+                                                        // Crveno ako si TI lajkovao, sivo ako nisi (čak i ako objava ima tuđe lajkove)
+                                                        tint = if (post.isLiked == 1) Color.Red else Color.Gray,
                                                         modifier = Modifier.size(20.dp)
                                                     )
                                                     Spacer(modifier = Modifier.width(4.dp))
@@ -240,6 +238,7 @@ fun DashboardScreen(
                                                     )
                                                 }
                                             }
+
 
 
                                             // POPRAVLJENO: Veća zona klika za Komentare 💬
