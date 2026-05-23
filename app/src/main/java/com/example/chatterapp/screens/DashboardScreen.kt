@@ -19,6 +19,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.chatterapp.data.AuthViewModel
 import com.example.chatterapp.data.DashboardViewModel
+import androidx.compose.ui.window.Dialog
+import androidx.compose.foundation.lazy.items
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
