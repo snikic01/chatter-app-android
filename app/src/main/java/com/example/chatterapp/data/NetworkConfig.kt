@@ -63,11 +63,12 @@ object NetworkConfig {
     fun getDashboardDataUrl(userId: Int, username: String): String =
         "${BASE_URL}api_dashboard.php?action=list&user_id=$userId&username=$username"
 
-    fun getEditCommentUrl(userId: Int, commentId: Int, commentText: String): String =
-        "${BASE_URL}api_dashboard.php?action=comment_edit&user_id=$userId&comment_id=$commentId&comment_text=$commentText"
+    // POPRAVLJENO: Dodat parametar username u rute kako bi server znao ko edituje/briše komentar
+    fun getEditCommentUrl(userId: Int, username: String, commentId: Int, commentText: String): String =
+        "${BASE_URL}api_dashboard.php?action=comment_edit&user_id=$userId&username=$username&comment_id=$commentId&comment_text=${java.net.URLEncoder.encode(commentText, "UTF-8")}"
 
-    fun getDeleteCommentUrl(userId: Int, commentId: Int): String =
-        "${BASE_URL}api_dashboard.php?action=comment_delete&user_id=$userId&comment_id=$commentId"
+    fun getDeleteCommentUrl(userId: Int, username: String, commentId: Int): String =
+        "${BASE_URL}api_dashboard.php?action=comment_delete&user_id=$userId&username=$username&comment_id=$commentId"
 
     fun getAdminLogsUrl(userId: Int): String =
         "${BASE_URL}api_dashboard.php?action=admin_logs&user_id=$userId"
