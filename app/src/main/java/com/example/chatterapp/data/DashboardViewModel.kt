@@ -30,8 +30,11 @@ class DashboardViewModel(
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading
 
-    val currentUserId: Int = authViewModel.getSavedUserId() ?: 0
-    val currentUsername: String = authViewModel.getSavedUsername() ?: ""
+    val currentUserId: Int
+        get() = authViewModel.getSavedUserId() ?: 0
+
+    val currentUsername: String
+        get() = authViewModel.getSavedUsername() ?: ""
 
     // Pomoćna funkcija za izvršavanje HTTP GET/POST zahteva na serveru u pozadini
     // Popravljeno: Potpuno asinhroni mrežni poziv sa timeout-om koji ne blokira telefon
