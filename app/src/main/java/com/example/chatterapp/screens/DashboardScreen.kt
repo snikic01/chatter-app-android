@@ -22,6 +22,12 @@ import androidx.compose.ui.unit.sp
 import com.example.chatterapp.data.AuthViewModel
 import com.example.chatterapp.data.DashboardViewModel
 import androidx.compose.ui.window.Dialog
+import com.example.chatterapp.data.DashboardPost
+
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
+
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -40,6 +46,9 @@ fun DashboardScreen(
     var showAddPostDialog by remember { mutableStateOf(false) }
     var showLogsDialog by remember { mutableStateOf(false) }
     var activeCommentsPostId by remember { mutableStateOf<Int?>(null) }
+    var editingPost by remember { mutableStateOf<DashboardPost?>(null) }
+
+
 
     // Učitaj podatke sa PHP servera čim se ekran otvori
     LaunchedEffect(Unit) {
@@ -153,19 +162,14 @@ fun DashboardScreen(
                                                 verticalAlignment = Alignment.CenterVertically
                                             ) {
                                                 // 1. Olovka za Izmenu (Edit) Objave na oglasnoj tabli
-                                                IconButton(onClick = {
-                                                    // Otvara dijalog ili akciju za izmenu posta
-                                                    android.util.Log.d(
-                                                        "ChatterBUG",
-                                                        "Kliknuto na edit posta: ${post.postId}"
-                                                    )
-                                                }) {
+                                                IconButton(onClick = { editingPost = post }) {
                                                     Icon(
                                                         imageVector = Icons.Default.Create,
                                                         contentDescription = "Izmeni objavu",
                                                         tint = Color.Gray
                                                     )
                                                 }
+
 
                                                 // 2. Kanta za Brisanje Objave
                                                 IconButton(onClick = {
@@ -303,6 +307,45 @@ fun DashboardScreen(
         )
     }
 
+    // --- DIJALOG ZA IZMENU OBJAVE PREKO OLOVKE ---
+    editingPost?.let { post ->
+        var editTitle by remember { mutableStateOf(post.title) }
+        var editContent by remember { mutableStateOf(post.content) }
+
+        AlertDialog(
+            onDismissRequest = { editingPost = null },
+            title = { Text("Izmeni objavu") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = editTitle,
+                        onValueChange = { editTitle = it },
+                        label = { Text("Naslov") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = editContent,
+                        onValueChange = { editContent = it },
+                        label = { Text("Sadržaj") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                Button(onClick = {
+                    // Prvo obrišemo staru verziju posta, a onda upišemo novu sa ažuriranim tekstom
+                    dashboardViewModel.deletePost(post.postId)
+                    dashboardViewModel.addNewPost(editTitle, editContent, post.boardColor)
+                    editingPost = null // Zatvara dijalog nakon klika
+                }) { Text("Sačuvaj izmene") }
+            },
+            dismissButton = {
+                TextButton(onClick = { editingPost = null }) { Text("Otkaži") }
+            }
+        )
+    }
+
+
     // --- DIJALOG ZA LISTANJE I PISANJE KOMENTARA ---
     activeCommentsPostId?.let { postId ->
         var newCommentText by remember { mutableStateOf("") }
@@ -333,12 +376,14 @@ fun DashboardScreen(
                                         // Samo admin ili autor komentara mogu da menjaju i brišu
                                         if (isAdmin || dashboardViewModel.currentUserId == comment.userId) {
                                             // 1. Olovka za Izmenu
+                                            // 1. Olovka za Izmenu (Popravljeno)
                                             IconButton(
                                                 onClick = { isEditing = !isEditing },
                                                 modifier = Modifier.size(24.dp)
                                             ) {
                                                 Icon(
-                                                    imageVector = androidx.compose.material.icons.Icons.Default.Edit,
+                                                    // Zamenjeno Edit sa Create (Ova olovka fabrički radi kod tebe)
+                                                    imageVector = androidx.compose.material.icons.Icons.Default.Create,
                                                     contentDescription = "Izmeni",
                                                     tint = Color.Gray
                                                 )

@@ -269,4 +269,23 @@ class DashboardViewModel(
             }
         }
     }
+
+    fun editPost(postId: Int, title: String, content: String) {
+        viewModelScope.launch {
+            try {
+                // Sklapamo URL za izmenu objave sa serverom
+                val url = "${NetworkConfig.BASE_URL}api_dashboard.php?action=post_edit&user_id=$currentUserId&username=$currentUsername&post_id=$postId&title=${java.net.URLEncoder.encode(title, "UTF-8")}&content=${java.net.URLEncoder.encode(content, "UTF-8")}"
+                val jsonResponse = sendHttpRequest(url)
+                val jsonObject = JSONObject(jsonResponse)
+
+                if (jsonObject.optBoolean("success", false)) {
+                    // Osvežavamo oglasnu tablu da odmah prikaže novi tekst
+                    loadDashboardData()
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
 }
