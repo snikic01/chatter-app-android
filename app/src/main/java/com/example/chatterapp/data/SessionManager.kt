@@ -3,29 +3,34 @@ package com.example.chatterapp.data
 import android.content.Context
 
 class SessionManager(context: Context) {
-    // Kreira lokalnu bazu ključ-vrednost unutar telefona
     private val prefs = context.getSharedPreferences("chatter_prefs", Context.MODE_PRIVATE)
 
-    // Čuva korisničko ime i privremeni token nakon uspešnog Login-a/Register-a
-    fun saveSession(username: String, token: String) {
+    // Ažurirano: Sada prima i čuva i userId (kao Int)
+    fun saveSession(userId: Int, username: String, token: String) {
         prefs.edit().apply {
+            putInt("user_id", userId)
             putString("auth_token", token)
             putString("username", username)
             apply()
         }
     }
 
-    // Proverava da li token postoji (ako postoji, korisnik je ulogovan)
+    // Proverava da li token postoji
     fun isLoggedIn(): Boolean {
         return prefs.getString("auth_token", null) != null
     }
 
-    // Vraća sačuvano ime korisnika za prikaz na Dashboard-u
+    // Vraća sačuvano ime korisnika
     fun getSavedUsername(): String? {
         return prefs.getString("username", null)
     }
 
-    // Briše sve podatke iz memorije kada korisnik klikne na Logout dugme
+    // Dodato: Vraća sačuvani ID korisnika (Vraća 0 ako ne postoji)
+    fun getSavedUserId(): Int {
+        return prefs.getInt("user_id", 0)
+    }
+
+    // Briše sve podatke iz memorije
     fun logout() {
         prefs.edit().clear().apply()
     }
