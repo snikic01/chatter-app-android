@@ -168,6 +168,11 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
+                // Osvežavamo Dashboard u pozadini svake 3 sekunde, potpuno nevidljivo za korisnika
+                    if (currentScreen == Screen.CHAT && currentTab == Tab.DASHBOARD) {
+                    dashboardViewModel.loadDashboardData(isSilent = true)
+                }
+
                 // === ČIST ARHITEKTONSKI RUTIRANJE EKRANA ===
                 when (currentScreen) {
                     Screen.LOGIN, Screen.REGISTER -> {
