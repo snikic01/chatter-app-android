@@ -124,7 +124,10 @@ fun DashboardScreen(
                     ) {
                         items(posts) { post ->
                             // DINAMIČKA BOJA: 'urgent' crvena, 'standard' ili bilo šta drugo plava
-                            val cardColor = if (post.boardColor == "urgent") Color(0xFFFFEBEE) else Color(0xFFE3F2FD)
+                            val cardColor =
+                                if (post.boardColor == "urgent") Color(0xFFFFEBEE) else Color(
+                                    0xFFE3F2FD
+                                )
 
                             Card(
                                 colors = CardDefaults.cardColors(containerColor = cardColor),
@@ -137,19 +140,59 @@ fun DashboardScreen(
                                         horizontalArrangement = Arrangement.SpaceBetween,
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
-                                        Text(text = post.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                                        Text(
+                                            text = post.title,
+                                            style = MaterialTheme.typography.titleMedium,
+                                            fontWeight = FontWeight.Bold
+                                        )
 
-                                        // Brisanje objave (Samo snikic01 ili admin)
+                                        // POPRAVLJENO: Prikazuje i Olovku i Kantu za brisanje samo adminima / snikic01
                                         if (dashboardViewModel.currentUsername == "snikic01" || isAdmin) {
-                                            IconButton(onClick = { dashboardViewModel.deletePost(post.postId) }) {
-                                                Icon(Icons.Default.Delete, contentDescription = "Obriši", tint = Color.Gray)
+                                            Row(
+                                                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                // 1. Olovka za Izmenu (Edit) Objave na oglasnoj tabli
+                                                IconButton(onClick = {
+                                                    // Otvara dijalog ili akciju za izmenu posta
+                                                    android.util.Log.d(
+                                                        "ChatterBUG",
+                                                        "Kliknuto na edit posta: ${post.postId}"
+                                                    )
+                                                }) {
+                                                    Icon(
+                                                        imageVector = Icons.Default.Create,
+                                                        contentDescription = "Izmeni objavu",
+                                                        tint = Color.Gray
+                                                    )
+                                                }
+
+                                                // 2. Kanta za Brisanje Objave
+                                                IconButton(onClick = {
+                                                    dashboardViewModel.deletePost(
+                                                        post.postId
+                                                    )
+                                                }) {
+                                                    Icon(
+                                                        Icons.Default.Delete,
+                                                        contentDescription = "Obriši",
+                                                        tint = Color.Gray
+                                                    )
+                                                }
                                             }
                                         }
                                     }
 
-                                    Text(text = post.createdAt, style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+                                    Text(
+                                        text = post.createdAt,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = Color.Gray
+                                    )
                                     Spacer(modifier = Modifier.height(8.dp))
-                                    Text(text = post.content, style = MaterialTheme.typography.bodyMedium)
+                                    Text(
+                                        text = post.content,
+                                        style = MaterialTheme.typography.bodyMedium
+                                    )
                                     Spacer(modifier = Modifier.height(12.dp))
 
                                     Row(
@@ -157,21 +200,48 @@ fun DashboardScreen(
                                         horizontalArrangement = Arrangement.SpaceBetween,
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
-                                        Text("👤 Autor: ${post.authorName}", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
-                                        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                                            Text(
-                                                text = "❤️ ${post.totalLikes}",
-                                                fontWeight = FontWeight.Bold,
-                                                modifier = Modifier.clickable { dashboardViewModel.toggleLike(post.postId) }
-                                            )
-                                            Text(
-                                                text = "💬 ${post.totalComments}",
-                                                fontWeight = FontWeight.Bold,
-                                                modifier = Modifier.clickable {
-                                                    dashboardViewModel.loadComments(post.postId)
-                                                    activeCommentsPostId = post.postId
+                                        Text(
+                                            "👤 Autor: ${post.authorName}",
+                                            style = MaterialTheme.typography.labelMedium,
+                                            fontWeight = FontWeight.SemiBold
+                                        )
+
+                                        Row(
+                                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            // POPRAVLJENO: Veća zona klika za Lajk ❤️
+                                            IconButton(onClick = {
+                                                dashboardViewModel.toggleLike(
+                                                    post.postId
+                                                )
+                                            }) {
+                                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                                    Text(text = "❤️", fontSize = 16.sp)
+                                                    Spacer(modifier = Modifier.width(4.dp))
+                                                    Text(
+                                                        text = "${post.totalLikes}",
+                                                        fontWeight = FontWeight.Bold,
+                                                        fontSize = 14.sp
+                                                    )
                                                 }
-                                            )
+                                            }
+
+                                            // POPRAVLJENO: Veća zona klika za Komentare 💬
+                                            IconButton(onClick = {
+                                                dashboardViewModel.loadComments(post.postId)
+                                                activeCommentsPostId = post.postId
+                                            }) {
+                                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                                    Text(text = "💬", fontSize = 16.sp)
+                                                    Spacer(modifier = Modifier.width(4.dp))
+                                                    Text(
+                                                        text = "${post.totalComments}",
+                                                        fontWeight = FontWeight.Bold,
+                                                        fontSize = 14.sp
+                                                    )
+                                                }
+                                            }
                                         }
                                     }
                                 }
@@ -179,7 +249,7 @@ fun DashboardScreen(
                         }
                     }
                 }
-            }
+                        }
         }
     }
 

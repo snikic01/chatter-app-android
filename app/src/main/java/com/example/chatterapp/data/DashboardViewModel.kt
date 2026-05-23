@@ -165,6 +165,7 @@ class DashboardViewModel(
             try {
                 val url = NetworkConfig.getAddCommentUrl(currentUserId, postId, text)
                 val jsonResponse = sendHttpRequest(url)
+                android.util.Log.d("ChatterBUG", "Komentari JSON: $jsonResponse")
                 val jsonObject = JSONObject(jsonResponse)
                 if (jsonObject.optBoolean("success", false)) {
                     loadComments(postId)
