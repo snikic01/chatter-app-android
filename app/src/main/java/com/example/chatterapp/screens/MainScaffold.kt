@@ -1,5 +1,7 @@
 package com.example.chatterapp.screens
 
+import com.example.chatterapp.data.DashboardViewModel
+
 import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -44,7 +46,8 @@ fun MainScaffold(
     authViewModel: AuthViewModel,
     coroutineScope: CoroutineScope,
     listState: androidx.compose.foundation.lazy.LazyListState,
-    sendChatMessage: suspend (String, String, Int) -> Boolean
+    sendChatMessage: suspend (String, String, Int) -> Boolean,
+    dashboardViewModel: DashboardViewModel
 ) {
     // 🛠️ FIX 1: Promenljiva je vraćena na sam početak funkcije, pre Scaffold-a!
     var isInsidePrivateChat by remember { mutableStateOf(false) }
@@ -89,7 +92,8 @@ fun MainScaffold(
                 Tab.DASHBOARD -> {
                     DashboardScreen(
                         authViewModel = authViewModel,
-                        onLogoutSuccess = onLogoutClick
+                        onLogoutSuccess = onLogoutClick,
+                        dashboardViewModel = dashboardViewModel
                     )
                 }
                 Tab.GROUPS -> {

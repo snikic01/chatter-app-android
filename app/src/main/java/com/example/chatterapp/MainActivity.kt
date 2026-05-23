@@ -60,6 +60,7 @@ class MainActivity : ComponentActivity() {
 
         val sessionManager = SessionManager(applicationContext)
         val authViewModel = AuthViewModel(sessionManager)
+        val dashboardViewModel = DashboardViewModel(authViewModel)
 
         setContent {
             MaterialTheme {
