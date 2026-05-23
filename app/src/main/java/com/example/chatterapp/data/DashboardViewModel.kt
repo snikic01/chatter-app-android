@@ -67,13 +67,15 @@ class DashboardViewModel(
     }
 
 
-    fun loadDashboardData() {
+    fun loadDashboardData(isSilent: Boolean = false) {
         viewModelScope.launch {
-            _isLoading.value = true
+            // Ako je zahtev "tih" (silent), NE palimo kružić za učitavanje i lista NE nestaje
+            if (!isSilent) {
+                _isLoading.value = true
+            }
             try {
                 val url = NetworkConfig.getDashboardDataUrl(currentUserId, currentUsername)
                 val jsonResponse = sendHttpRequest(url)
-                // DODAJ SAMO OVU LINIJU OVDE:
                 android.util.Log.d("ChatterBUG", "Sirovi JSON sa servera: $jsonResponse")
                 val jsonObject = JSONObject(jsonResponse)
 
@@ -106,7 +108,10 @@ class DashboardViewModel(
             } catch (e: Exception) {
                 e.printStackTrace()
             } finally {
-                _isLoading.value = false
+                // Gasimo učitavanje samo ako smo ga i upalili
+                if (!isSilent) {
+                    _isLoading.value = false
+                }
             }
         }
     }
@@ -121,7 +126,7 @@ class DashboardViewModel(
                 android.util.Log.d("ChatterBUG", "Odgovor za Lajk: $jsonResponse")
                 val jsonObject = JSONObject(jsonResponse)
                 if (jsonObject.optBoolean("success", false)) {
-                    loadDashboardData()
+                    loadDashboardData(isSilent = true)
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
