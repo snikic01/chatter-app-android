@@ -34,33 +34,47 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 
-data class AndroidFriend(val id: Int, val username: String, val isOnline: Boolean)
-data class AndroidFriendRequest(val id: Int, val username: String)
+// Model podataka za stabilno parsiranje prijatelja i zahteva
+data class AndroidFriend(
+    val id: Int,
+    val username: String,
+    val isOnline: Boolean
+)
+
+data class AndroidFriendRequest(
+    val id: Int,
+    val username: String
+)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun FriendsScreen(currentUsername: String, client: HttpClient) {
+fun FriendsScreen(
+    currentUsername: String,
+    client: HttpClient
+) {
     var friendsList by remember { mutableStateOf(listOf<AndroidFriend>()) }
     var requestsList by remember { mutableStateOf(listOf<AndroidFriendRequest>()) }
     var suggestionsList by remember { mutableStateOf(listOf<AndroidFriend>()) }
-    var userSuggestions by remember { mutableStateOf<List<String>>(emptyList()) }
 
-
-    var localSearchQuery by remember { mutableStateOf("") }
-    var newFriendQuery by remember { mutableStateOf("") }
+    var localSearchQuery by remember { mutableStateOf("") } // Filter trenutnih prijatelja
+    var newFriendQuery by remember { mutableStateOf("") }     // Unos za slanje novog zahteva
+    var userSuggestions by remember { mutableStateOf<List<String>>(emptyList()) } // Sugestije u searchbaru
 
     var infoMessage by remember { mutableStateOf<String?>(null) }
     var isError by remember { mutableStateOf(false) }
+
     val coroutineScope = rememberCoroutineScope()
 
+    // Pametni lokalni filter za trenutne prijatelje
     val filtriraniPrijatelji = friendsList.filter {
         it.username.contains(localSearchQuery, ignoreCase = true)
     }
 
-    // --- 1. POLING ZA TABS (Prijatelji, Zahtevi, Preporuke na 3 sekunde) ---
+    // --- 1. OSVEŽAVANJE PRIJATELJA, ZAHTEVA I PREPORUKA (Polling na svake 3 sekunde) ---
     LaunchedEffect(Unit) {
         while (true) {
             try {
+                // Poziv za prijatelje i zahteve
                 val url = NetworkConfig.getFriendsUrl(currentUsername)
                 val response = withContext(Dispatchers.IO) { client.get(url) }
                 val json = JSONObject(response.bodyAsText())
@@ -70,51 +84,84 @@ fun FriendsScreen(currentUsername: String, client: HttpClient) {
                     val tempFriends = mutableListOf<AndroidFriend>()
                     for (i in 0 until arrFriends.length()) {
                         val obj = arrFriends.getJSONObject(i)
-                        tempFriends.add(AndroidFriend(obj.getInt("id"), obj.getString("username"), obj.optInt("is_online", 0) == 1))
+                        val fIdStr = obj.optString("id", "0")
+                        tempFriends.add(
+                            AndroidFriend(
+                                id = fIdStr.toIntOrNull() ?: 0,
+                                username = obj.getString("username"),
+                                isOnline = obj.optInt("is_online", 0) == 1
+                            )
+                        )
                     }
 
                     val arrReq = json.getJSONArray("requests")
                     val tempReq = mutableListOf<AndroidFriendRequest>()
                     for (i in 0 until arrReq.length()) {
                         val obj = arrReq.getJSONObject(i)
-                        tempReq.add(AndroidFriendRequest(obj.getInt("id"), obj.getString("username")))
+                        val rIdStr = obj.optString("id", "0")
+                        tempReq.add(
+                            AndroidFriendRequest(
+                                id = rIdStr.toIntOrNull() ?: 0,
+                                username = obj.getString("username")
+                            )
+                        )
                     }
 
                     friendsList = tempFriends
                     requestsList = tempReq
                 }
 
-                // Povlačimo i preporuke sa novog PHP modula
+                // 🛠️ POZIV ZA PREPORUKE (LJUDE KOJE MOŽDA POZNAJEŠ)
                 val urlSugg = NetworkConfig.getFriendSuggestionsUrl(currentUsername)
                 val responseSugg = withContext(Dispatchers.IO) { client.get(urlSugg) }
                 val jsonSugg = JSONObject(responseSugg.bodyAsText())
+
                 if (jsonSugg.optBoolean("success", false)) {
                     val arrSugg = jsonSugg.getJSONArray("suggestions")
                     val tempSugg = mutableListOf<AndroidFriend>()
+
                     for (i in 0 until arrSugg.length()) {
                         val obj = arrSugg.getJSONObject(i)
-                        tempSugg.add(AndroidFriend(obj.getInt("id"), obj.getString("username"), obj.optInt("is_online", 0) == 1))
+                        val sIdStr = obj.optString("id", "0")
+
+                        tempSugg.add(
+                            AndroidFriend(
+                                id = sIdStr.toIntOrNull() ?: 0,
+                                username = obj.getString("username"),
+                                isOnline = obj.optInt("is_online", 0) == 1
+                            )
+                        )
                     }
-                    suggestionsList = tempSugg
+                    withContext(Dispatchers.Main) {
+                        suggestionsList = tempSugg
+                    }
                 }
-            } catch (e: Exception) { Log.e("ChatterFriends", "Poller error: ${e.message}") }
+            } catch (e: Exception) {
+                Log.e("ChatterFriends", "Greška u poleru prijatelja: ${e.message}")
+            }
             delay(3000)
         }
     }
 
     LaunchedEffect(infoMessage) {
-        if (infoMessage != null) { delay(4000); infoMessage = null }
+        if (infoMessage != null) {
+            delay(4000)
+            infoMessage = null
+        }
     }
 
     Scaffold(
         topBar = { TopAppBar(title = { Text("Prijatelji", fontWeight = FontWeight.Bold) }) }
     ) { paddingValues ->
         LazyColumn(
-            modifier = Modifier.fillMaxSize().padding(paddingValues).background(Color(0xFFF8F9FA)).padding(16.dp),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+                .background(Color(0xFFF8F9FA))
+                .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // === DEO 1: RUČNO SLANJE ZAHTEVA ===
-            // === DEO 1: SLANJE NOVOG ZAHTEVA ZA PRIJATELJSTVO SA SUGESTIJAMA ===
+            // === DEO 1: PRETRAGA I SLANJE NOVOG ZAHTEVA SA AUTODOPUNOM ===
             item {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
@@ -133,11 +180,9 @@ fun FriendsScreen(currentUsername: String, client: HttpClient) {
                                     onValueChange = { unetiTekst ->
                                         newFriendQuery = unetiTekst
 
-                                        // --- INSTANT PRETRAGA I SUGESTIJE TOKOM KUCANJA ---
                                         if (unetiTekst.trim().length >= 2) {
                                             coroutineScope.launch(Dispatchers.IO) {
                                                 try {
-                                                    // Koristimo našu proverenu akciju pretrage i osvežavamo usera u pozadini
                                                     val url = NetworkConfig.getSearchUsersUrl(0, unetiTekst.trim()) + "&username=$currentUsername"
                                                     val response = client.get(url)
                                                     val json = JSONObject(response.bodyAsText())
@@ -177,6 +222,7 @@ fun FriendsScreen(currentUsername: String, client: HttpClient) {
                                                         put("username", currentUsername)
                                                         put("friend_username", targetUser)
                                                     }.toString()
+
                                                     val response = client.post(NetworkConfig.getFriendsApiUrl()) {
                                                         contentType(ContentType.Application.Json)
                                                         setBody(jsonBody)
@@ -194,10 +240,10 @@ fun FriendsScreen(currentUsername: String, client: HttpClient) {
                                             }
                                         }
                                     }
-                                ) { Icon(Icons.Default.Add, contentDescription = "Dodaj", tint = Color(0xFF2196F3)) }
+                                ) { Icon(Icons.Default.Add, contentDescription = "Slanje", tint = Color(0xFF2196F3)) }
                             }
 
-                            // === BOX ZA PRIKAZ SUGESTIJA KORISNIKA SA WEB SAJTA ===
+                            // Sugestije u vidu sive kartice ispod polja
                             if (userSuggestions.isNotEmpty()) {
                                 Card(
                                     modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
@@ -212,7 +258,6 @@ fun FriendsScreen(currentUsername: String, client: HttpClient) {
                                                 modifier = Modifier
                                                     .fillMaxWidth()
                                                     .clickable {
-                                                        // Na klik, ime uskače u input i predlozi se automatski sakrivaju
                                                         newFriendQuery = predlozenoIme
                                                         userSuggestions = emptyList()
                                                     }
@@ -225,6 +270,7 @@ fun FriendsScreen(currentUsername: String, client: HttpClient) {
                                 }
                             }
                         }
+
                         infoMessage?.let { msg ->
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(text = msg, color = if (isError) Color.Red else Color(0xFF4CAF50), fontSize = 14.sp)
@@ -233,8 +279,7 @@ fun FriendsScreen(currentUsername: String, client: HttpClient) {
                 }
             }
 
-
-            // === 🚨 DEO 2: NOVO - PREDLOŽENI PRIJATELJI (FRIEND SUGGESTIONS) ===
+            // === DEO 2: PREDLOŽENI PRIJATELJI (FRIEND SUGGESTIONS) ===
             if (suggestionsList.isNotEmpty()) {
                 item { Text(text = "Ljudi koje možda poznaješ", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color.Gray) }
                 items(suggestionsList) { sugg ->
@@ -280,7 +325,7 @@ fun FriendsScreen(currentUsername: String, client: HttpClient) {
                 }
             }
 
-            // === DEO 3: DOLAZNI ZAHTEVI ===
+            // === DEO 3: ZAHTEVI NA ČEKANJU ===
             if (requestsList.isNotEmpty()) {
                 item { Text(text = "Zahtevi za prijateljstvo (${requestsList.size})", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color.Gray) }
                 items(requestsList) { request ->
