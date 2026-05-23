@@ -95,7 +95,8 @@ class DashboardViewModel(
                                     boardColor = pObj.optString("type", "standard"),
                                     totalLikes = pObj.optInt("likes_count", 0),
                                     totalComments = pObj.optInt("comments_count", 0),
-                                    authorName = "Admin"
+                                    authorName = "Admin",
+                                    isLiked = pObj.optInt("is_liked", 0)
                                 )
                             )
                         }
