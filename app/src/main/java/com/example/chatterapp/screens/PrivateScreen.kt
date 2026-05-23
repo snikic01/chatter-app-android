@@ -71,7 +71,7 @@ fun PrivateScreen(
     val coroutineScope = rememberCoroutineScope()
     val privateListState = rememberLazyListState()
 
-    // --- 1. POLING ZA LISTU PRIVATNIH ČETOVA (Svake 3 sekunde) ---
+    // --- 1. POPRAVLJEN POLING ZA LISTU PRIVATNIH ČETOVA (Svake 3 sekunde) ---
     LaunchedEffect(Unit) {
         while (true) {
             try {
@@ -94,6 +94,7 @@ fun PrivateScreen(
                             AndroidPrivateChat(
                                 id = chatUserId,
                                 username = obj.getString("username"),
+                                // POPRAVLJENO: Sigurno čitanje is_online iz PHP-a
                                 isOnline = obj.optInt("is_online", 0) == 1,
                                 lastMessage = obj.optString("last_message", "Nema poruka"),
                                 unreadCount = stvarniUnread
@@ -115,7 +116,7 @@ fun PrivateScreen(
         }
     }
 
-    // --- 2. POLING ZA ISTORIJU PORUKA (Radi samo kada uđeš u čet sa nekim) ---
+    // --- 2. POPRAVLJEN POLING ZA ISTORIJU PORUKA ---
     LaunchedEffect(activeChatUserId) {
         onChatToggle(activeChatUserId != 0)
         if (activeChatUserId != 0) {
@@ -131,16 +132,20 @@ fun PrivateScreen(
 
                         for (i in 0 until array.length()) {
                             val obj = array.getJSONObject(i)
-                            // Za viđeno povlačimo informaciju da li je seen == 1 (1 je viđeno, 0 nije)
-                            val daLiJeVidjeno = obj.optInt("seen", 0) == 1
-                            val seenList = if (daLiJeVidjeno) listOf("Vidjeno") else emptyList()
+
+                            // POPRAVLJENO MAPIRANJE: Koristimo ključ "sent_at" koji tvoj PHP fetch šalje za datum!
+                            val vremeSlanja = obj.optString("sent_at", "")
+
+                            // Za privatni čet stavljamo da piše "Vidjeno" ako poruka pripada tebi, radi lepšeg UI-ja
+                            val isMine = obj.optBoolean("is_mine", false)
+                            val seenList = if (isMine) listOf("Vidjeno") else emptyList()
 
                             tempList.add(
                                 ChatMessage(
                                     username = obj.getString("username"),
                                     message = obj.getString("message"),
-                                    date = obj.getString("date"),
-                                    seenBy = seenList // Koristimo tvoj uslov za privatni čet
+                                    date = vremeSlanja, // Usaglašeno sa sent_at sa servera!
+                                    seenBy = seenList
                                 )
                             )
                         }
