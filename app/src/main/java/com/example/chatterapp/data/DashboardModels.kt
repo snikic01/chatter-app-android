@@ -34,7 +34,8 @@ data class DashboardPost(
     val boardColor: String = "standard",
     val totalLikes: Int = 0,
     val totalComments: Int = 0,
-    val authorName: String = "Admin"
+    val authorName: String = "Admin",
+    val isLiked: Int = 0
 )
 
 // Model za Komentare
