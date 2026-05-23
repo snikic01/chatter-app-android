@@ -71,7 +71,7 @@ fun PrivateScreen(
     val coroutineScope = rememberCoroutineScope()
     val privateListState = rememberLazyListState()
 
-    // --- 1. POPRAVLJEN POLING ZA LISTU PRIVATNIH ČETOVA (Svake 3 sekunde) ---
+    // --- 1. POPRAVLJEN POLING ZA LISTU PRIVATNIH ČETOVA ---
     LaunchedEffect(Unit) {
         while (true) {
             try {
@@ -90,12 +90,20 @@ fun PrivateScreen(
                         // Ako korisnik trenutno gleda ovaj čet, nepročitane poruke su 0
                         val stvarniUnread = if (chatUserId == activeChatUserId) 0 else obj.optInt("unread_count", 0)
 
+                        // POPRAVLJENO SIGURNO ČITANJE: Pretvara bilo koji tip (Int, String) sa servera u čist Boolean
+                        val rawOnline = obj.opt("is_online")
+                        val onlineStatus = when (rawOnline) {
+                            is Boolean -> rawOnline
+                            is Number -> rawOnline.toInt() == 1
+                            is String -> rawOnline == "1" || rawOnline.equals("true", ignoreCase = true)
+                            else -> false
+                        }
+
                         tempList.add(
                             AndroidPrivateChat(
                                 id = chatUserId,
                                 username = obj.getString("username"),
-                                // POPRAVLJENO: Sigurno čitanje is_online iz PHP-a
-                                isOnline = obj.optInt("is_online", 0) == 1,
+                                isOnline = onlineStatus, // Sada bezbedno upisuje Boolean bez rušenja aplikacije
                                 lastMessage = obj.optString("last_message", "Nema poruka"),
                                 unreadCount = stvarniUnread
                             )
@@ -115,6 +123,7 @@ fun PrivateScreen(
             delay(3000)
         }
     }
+
 
     // --- 2. POPRAVLJEN POLING ZA ISTORIJU PORUKA ---
     LaunchedEffect(activeChatUserId) {
