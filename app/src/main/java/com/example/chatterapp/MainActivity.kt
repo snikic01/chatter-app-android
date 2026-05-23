@@ -102,37 +102,51 @@ class MainActivity : ComponentActivity() {
                                 if (currentScreen != Screen.CHAT || currentTab != Tab.GROUPS) break
 
                                 try {
-                                    val savedUser = sessionManager.getSavedUsername() ?: currentUsername.value
+                                    val savedUser =
+                                        sessionManager.getSavedUsername() ?: currentUsername.value
 
                                     // --- 1. OSVEŽAVANJE LISTE GRUPA ---
-                                    val responseGroups = client.get(NetworkConfig.getGroupsUrl(savedUser))
+                                    val responseGroups =
+                                        client.get(NetworkConfig.getGroupsUrl(savedUser))
                                     val jsonGroups = JSONObject(responseGroups.bodyAsText())
 
                                     if (jsonGroups.optBoolean("success", false)) {
                                         val array = jsonGroups.getJSONArray("groups")
-                                        val list = mutableListOf<com.example.chatterapp.screens.AndroidChatGroup>()
+                                        val list =
+                                            mutableListOf<com.example.chatterapp.screens.AndroidChatGroup>()
                                         for (i in 0 until array.length()) {
                                             val obj = array.getJSONObject(i)
                                             val tvojaGrupaId = obj.getInt("id")
-                                            val stvarniUnreadCount = if (tvojaGrupaId == activeGroupId) 0 else obj.optInt("unread_count", 0)
+                                            val stvarniUnreadCount =
+                                                if (tvojaGrupaId == activeGroupId) 0 else obj.optInt(
+                                                    "unread_count",
+                                                    0
+                                                )
 
-                                            list.add(com.example.chatterapp.screens.AndroidChatGroup(
-                                                id = tvojaGrupaId,
-                                                name = obj.getString("name"),
-                                                isOwner = obj.optInt("is_owner", 0) == 1,
-                                                unreadCount = stvarniUnreadCount,
-                                                ownerName = obj.optString("owner_name", "")
-                                            ))
+                                            list.add(
+                                                com.example.chatterapp.screens.AndroidChatGroup(
+                                                    id = tvojaGrupaId,
+                                                    name = obj.getString("name"),
+                                                    isOwner = obj.optInt("is_owner", 0) == 1,
+                                                    unreadCount = stvarniUnreadCount,
+                                                    ownerName = obj.optString("owner_name", "")
+                                                )
+                                            )
                                         }
                                         withContext(Dispatchers.Main) { groupsList = list }
                                     }
 
                                     // --- 2. OSVEŽAVANJE PORUKA UNUTAR ČETA ---
                                     if (activeGroupId != 0) {
-                                        val responseChat = client.get(NetworkConfig.getChatUrl(activeGroupId))
+                                        val responseChat =
+                                            client.get(NetworkConfig.getChatUrl(activeGroupId))
                                         val jsonChat = JSONObject(responseChat.bodyAsText())
 
-                                        if (jsonChat.optBoolean("success", true) || jsonChat.has("messages")) {
+                                        if (jsonChat.optBoolean(
+                                                "success",
+                                                true
+                                            ) || jsonChat.has("messages")
+                                        ) {
                                             val jsonArray = jsonChat.getJSONArray("messages")
                                             val listMsg = mutableListOf<ChatMessage>()
                                             for (i in 0 until jsonArray.length()) {
@@ -140,14 +154,21 @@ class MainActivity : ComponentActivity() {
                                                 val seenArray = obj.optJSONArray("seen_by")
                                                 val seenList = mutableListOf<String>()
                                                 if (seenArray != null) {
-                                                    for (j in 0 until seenArray.length()) seenList.add(seenArray.getString(j))
+                                                    for (j in 0 until seenArray.length()) seenList.add(
+                                                        seenArray.getString(j)
+                                                    )
                                                 }
-                                                listMsg.add(ChatMessage(
-                                                    username = obj.optString("username", "Anonimno"),
-                                                    message = obj.optString("message", ""),
-                                                    date = obj.optString("sent_at", ""),
-                                                    seenBy = seenList
-                                                ))
+                                                listMsg.add(
+                                                    ChatMessage(
+                                                        username = obj.optString(
+                                                            "username",
+                                                            "Anonimno"
+                                                        ),
+                                                        message = obj.optString("message", ""),
+                                                        date = obj.optString("sent_at", ""),
+                                                        seenBy = seenList
+                                                    )
+                                                )
                                             }
                                             withContext(Dispatchers.Main) { messagesList = listMsg }
                                         }
@@ -160,7 +181,7 @@ class MainActivity : ComponentActivity() {
                         }
                     }
                 }
-                    if (currentScreen == Screen.CHAT && currentTab == Tab.DASHBOARD) {
+                if (currentScreen == Screen.CHAT && currentTab == Tab.DASHBOARD) {
                     try {
                         dashboardViewModel.loadDashboardData()
                     } catch (e: Exception) {
@@ -169,8 +190,13 @@ class MainActivity : ComponentActivity() {
                 }
 
                 // Osvežavamo Dashboard u pozadini svake 3 sekunde, potpuno nevidljivo za korisnika
-                    if (currentScreen == Screen.CHAT && currentTab == Tab.DASHBOARD) {
-                    dashboardViewModel.loadDashboardData(isSilent = true)
+                if (currentScreen == Screen.CHAT && currentTab == Tab.DASHBOARD) {
+                    try {
+                        // Koristimo isSilent = true kako korisniku ne bi skakao kružić za Učitavanje
+                        dashboardViewModel.loadDashboardData(isSilent = true)
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
                 }
 
                 // === ČIST ARHITEKTONSKI RUTIRANJE EKRANA ===
