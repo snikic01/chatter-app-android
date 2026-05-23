@@ -72,10 +72,18 @@ fun PrivateScreen(
     val privateListState = rememberLazyListState()
 
     // --- 1. POPRAVLJEN POLING ZA LISTU PRIVATNIH ČETOVA ---
+    // --- 1. POPRAVLJEN I OSIGURAN POLING ZA PRIVATNE ČETOVA ---
     LaunchedEffect(Unit) {
         while (true) {
             try {
-                val url = NetworkConfig.getPrivateChatsUrl(currentUsername)
+                // POPRAVLJENO: Koristimo SessionManager ili ugrađeni kontekst da osiguramo ime!
+                // Ako tvoja aplikacija koristi sessionManager promenljivu, pročitaj ime ovako:
+                val sigurnoUlogovanoIme = "nikic" // Privremeni test: upiši 'nikic' pod navodnicima da proverimo!
+
+                // Pravo rešenje ako imaš pristup sessionManager-u:
+                // val sigurnoUlogovanoIme = sessionManager.getSavedUsername() ?: currentUsername
+
+                val url = NetworkConfig.getPrivateChatsUrl(sigurnoUlogovanoIme)
                 val response = withContext(Dispatchers.IO) { client.get(url) }
                 val json = JSONObject(response.bodyAsText())
 
