@@ -118,6 +118,7 @@ class DashboardViewModel(
                 val url = NetworkConfig.getToggleLikeUrl(currentUserId, currentUsername, postId)
                 android.util.Log.d("ChatterBUG", "Poziv za Lajk URL: $url")
                 val jsonResponse = sendHttpRequest(url)
+                android.util.Log.d("ChatterBUG", "Odgovor za Lajk: $jsonResponse")
                 val jsonObject = JSONObject(jsonResponse)
                 if (jsonObject.optBoolean("success", false)) {
                     loadDashboardData()
