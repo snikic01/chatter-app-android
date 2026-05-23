@@ -167,7 +167,6 @@ class DashboardViewModel(
         viewModelScope.launch {
             if (text.isBlank()) return@launch
             try {
-                // POPRAVLJENO: Dodat currentUsername u sredinu
                 val url = NetworkConfig.getAddCommentUrl(currentUserId, currentUsername, postId, text)
                 val jsonResponse = sendHttpRequest(url)
                 android.util.Log.d("ChatterBUG", "Komentari JSON: $jsonResponse")
@@ -185,8 +184,7 @@ class DashboardViewModel(
     fun editComment(postId: Int, commentId: Int, newText: String) {
         viewModelScope.launch {
             try {
-                val url = NetworkConfig.getEditCommentUrl(currentUserId, commentId, newText)
-                val jsonResponse = sendHttpRequest(url)
+                val url = NetworkConfig.getEditCommentUrl(currentUserId, currentUsername, commentId, newText);                val jsonResponse = sendHttpRequest(url)
                 val jsonObject = JSONObject(jsonResponse)
                 if (jsonObject.optBoolean("success", false)) {
                     loadComments(postId)
@@ -200,8 +198,7 @@ class DashboardViewModel(
     fun deleteComment(postId: Int, commentId: Int) {
         viewModelScope.launch {
             try {
-                val url = NetworkConfig.getDeleteCommentUrl(currentUserId, commentId)
-                val jsonResponse = sendHttpRequest(url)
+                val url = NetworkConfig.getDeleteCommentUrl(currentUserId, currentUsername, commentId);                val jsonResponse = sendHttpRequest(url)
                 val jsonObject = JSONObject(jsonResponse)
                 if (jsonObject.optBoolean("success", false)) {
                     loadComments(postId)
