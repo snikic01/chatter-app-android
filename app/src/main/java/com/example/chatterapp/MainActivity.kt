@@ -160,6 +160,13 @@ class MainActivity : ComponentActivity() {
                         }
                     }
                 }
+                    if (currentScreen == Screen.CHAT && currentTab == Tab.DASHBOARD) {
+                    try {
+                        dashboardViewModel.loadDashboardData()
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+                }
 
                 // === ČIST ARHITEKTONSKI RUTIRANJE EKRANA ===
                 when (currentScreen) {
