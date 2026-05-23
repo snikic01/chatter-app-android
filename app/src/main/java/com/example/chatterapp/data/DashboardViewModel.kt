@@ -146,7 +146,7 @@ class DashboardViewModel(
                                     userId = cObj.optInt("user_id", 0),
                                     commentText = cObj.optString("comment_text", ""),
                                     createdAt = cObj.optString("created_at", ""),
-                                    commenterName = cObj.optString("username", "Korisnik")
+                                    commenterName = cObj.optString("commenter_name", "Korisnik")
                                 )
                             )
                         }
