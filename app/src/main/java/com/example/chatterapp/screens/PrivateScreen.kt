@@ -109,27 +109,26 @@ fun PrivateScreen(
     val privateListState = rememberLazyListState()
 
     // --- 1. JEDINI I STABILNI POLING ZA LISTU PRIVATNIH ČETOVA (Svake 3 sekunde) ---
-    //  REŠENJE ZA INSTANT REFRESH: Prebacujemo ceo poler na tvoj getFriendsUrl kanal!
-    // Pošto ovaj kanal Dashboard ne može da presretne, lista će se osvežiti nakon maksimalno 3 sekunde čim prihvatiš nekog na vebu!
+    // 🛠️ POPRAVLJENO: Vraćena tvoja originalna ruta sa porukama + dodat _nocache žig koji razbija keš!
     LaunchedEffect(activeChatUserId) {
         while (true) {
             try {
-                // Koristimo tvoju proverenu rutu pod brojem 5 koja dokazano radi bez greške!
-                val urlPrijatelja = NetworkConfig.getFriendsUrl(currentUsername)
-                val response = withContext(Dispatchers.IO) { client.get(urlPrijatelja) }
+                // Dodajemo timestamp na kraj URL-a da nateramo telefon da povuče nove prijatelje u roku od 3 sekunde!
+                // 🛠️ FIX: Obrisani su suvišni razmaci u nazivu promenljive 'urlSaZigom'
+                val urlSaZigom = NetworkConfig.getPrivateChatsUrl(currentUsername) + "&_nocache=" + System.currentTimeMillis()
+
+                val response = withContext(Dispatchers.IO) { client.get(urlSaZigom) }
+
                 val responseText = response.bodyAsText()
                 val json = JSONObject(responseText)
 
                 if (json.optBoolean("success", false)) {
-                    // Čitamo niz koji api_friends.php vraća
-                    val array = json.optJSONArray("friends") ?: json.optJSONArray("users") ?: org.json.JSONArray()
+                    val array = json.getJSONArray("chats")
                     val tempList = mutableListOf<AndroidPrivateChat>()
 
                     for (i in 0 until array.length()) {
                         val obj = array.getJSONObject(i)
                         val chatUserId = obj.getInt("id")
-
-                        // Ako korisnik trenutno gleda ovaj čet, nepročitane poruke su 0
                         val stvarniUnread = if (chatUserId == activeChatUserId) 0 else obj.optInt("unread_count", 0)
 
                         tempList.add(
@@ -137,8 +136,8 @@ fun PrivateScreen(
                                 id = chatUserId,
                                 username = obj.getString("username"),
                                 isOnline = obj.optInt("is_online", 0) == 1,
-                                // Ako tvoj api_friends ne vraća last_message, stavljamo privremeni tekst dok ne uđeš u čet
-                                lastMessage = obj.optString("last_message", "Započni privatni razgovor..."),
+                                // Ponovo čitamo pravu poslednju poruku sa servera!
+                                lastMessage = obj.optString("last_message", "Nema poruka. Započni čet!"),
                                 unreadCount = stvarniUnread
                             )
                         )
@@ -151,11 +150,12 @@ fun PrivateScreen(
                     }
                 }
             } catch (e: Exception) {
-                Log.e("PrivateChatsPoler", "Greška u poleru lista: ${e.message}")
+                Log.e("PrivateChats", "Greška u poleru lista: ${e.message}")
             }
             delay(3000) // Osvežavanje na svake 3 sekunde
         }
     }
+
 
 
     // --- 2. JEDINI I STABILNI POLING ZA ISTORIJU PORUKA (Učitava tekst unutar četa) ---
