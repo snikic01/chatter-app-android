@@ -118,14 +118,18 @@ fun PrivateScreen(
     LaunchedEffect(activeChatUserId) {
         while (true) {
             try {
-                // REŠENJE: Direktan i neprobojan URL ka tvom privatnom API-ju sa razbijanjem keša
-                val fiksniUrl = "https://ts.net" + System.currentTimeMillis()
-
-                val response = withContext(Dispatchers.IO) { client.get(fiksniUrl) }
+                val response = withContext(Dispatchers.IO) {
+                    client.post(NetworkConfig.getPrivateSendApiUrl()) {
+                        contentType(ContentType.Application.Json)
+                        setBody(
+                            JSONObject().apply {
+                                put("action", "list")
+                                put("username", currentUsername)
+                            }.toString()
+                        )
+                    }
+                }
                 val responseText = response.bodyAsText()
-
-                // Štampaćemo u Logcat da vidimo da li smo konačno dobili privatne četove umesto dashboarda
-                Log.d("ChatterBUG_Private", "PRIVATNA LISTA: $responseText")
 
                 val json = JSONObject(responseText)
                 if (json.optBoolean("success", false)) {
@@ -168,13 +172,19 @@ fun PrivateScreen(
         if (activeChatUserId != 0) {
             while (activeChatUserId != 0) {
                 try {
-                    // Direktan URL za istoriju poruka sa selektovanim prijateljem
-                    val fiksniChatUrl = "https://nikiclab01.tailfd4e2c.ts.net" + System.currentTimeMillis()
-
-                    val response = withContext(Dispatchers.IO) { client.get(fiksniChatUrl) }
+                    val response = withContext(Dispatchers.IO) {
+                        client.post(NetworkConfig.getPrivateSendApiUrl()) {
+                            contentType(ContentType.Application.Json)
+                            setBody(
+                                JSONObject().apply {
+                                    put("action", "fetch")
+                                    put("username", currentUsername)
+                                    put("chat_user_id", activeChatUserId)
+                                }.toString()
+                            )
+                        }
+                    }
                     val responseText = response.bodyAsText()
-
-                    Log.d("ChatterBUG_Private", "PRIVATNE PORUKE: $responseText")
 
                     val json = JSONObject(responseText)
                     if (json.optBoolean("success", false) || json.has("messages")) {
@@ -204,7 +214,6 @@ fun PrivateScreen(
             }
         }
     }
-
     // --- AUTOMATSKI SKROL NA KRAJ PRIVATNOG ČETA ---
     LaunchedEffect(privateMessagesList.size) {
         if (privateMessagesList.isNotEmpty()) {
