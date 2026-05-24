@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
@@ -66,11 +67,12 @@ fun PrivateScreen(
         it.username.contains(searchQuery, ignoreCase = true)
     }
 
+
     val coroutineScope = rememberCoroutineScope()
     val privateListState = rememberLazyListState()
 
     // --- 1. POLING ZA LISTU PRIVATNIH ČETOVA (Svake 3 sekunde) ---
-    LaunchedEffect(activeChatUserId) {
+    LaunchedEffect(Unit) {
         while (true) {
             try {
                 val url = NetworkConfig.getPrivateChatsUrl(currentUsername)
@@ -117,7 +119,7 @@ fun PrivateScreen(
     LaunchedEffect(activeChatUserId) {
         onChatToggle(activeChatUserId != 0)
         if (activeChatUserId != 0) {
-            while (true) {
+            while (activeChatUserId != 0) {
                 try {
                     val url = NetworkConfig.getPrivateChatUrl(currentUsername, activeChatUserId)
                     val response = withContext(Dispatchers.IO) { client.get(url) }
@@ -129,6 +131,7 @@ fun PrivateScreen(
 
                         for (i in 0 until array.length()) {
                             val obj = array.getJSONObject(i)
+                            // Za viđeno povlačimo informaciju da li je seen == 1 (1 je viđeno, 0 nije)
                             val daLiJeVidjeno = obj.optInt("seen", 0) == 1
                             val seenList = if (daLiJeVidjeno) listOf("Vidjeno") else emptyList()
 
@@ -137,7 +140,7 @@ fun PrivateScreen(
                                     username = obj.getString("username"),
                                     message = obj.getString("message"),
                                     date = obj.getString("date"),
-                                    seenBy = seenList
+                                    seenBy = seenList // Koristimo tvoj uslov za privatni čet
                                 )
                             )
                         }
@@ -146,7 +149,7 @@ fun PrivateScreen(
                 } catch (e: Exception) {
                     Log.e("PrivateMessages", "Greška u poleru poruka: ${e.message}")
                 }
-                delay(2000)
+                delay(3000)
             }
         }
     }
@@ -221,9 +224,7 @@ fun PrivateScreen(
                                                     contentType(ContentType.Application.Json)
                                                     setBody(jsonBody)
                                                 }
-                                            } catch (e: Exception) {
-                                                Log.e("PrivateSeen", "Greška: ${e.message}")
-                                            }
+                                            } catch (e: Exception) { Log.e("PrivateSeen", "Greška: ${e.message}") }
                                         }
                                     },
                                 shape = RoundedCornerShape(12.dp),
@@ -272,7 +273,7 @@ fun PrivateScreen(
     } else {
         // === PRIKAZ ČETA ZA IZABRANOG PRIJATELJA ===
         Column(modifier = Modifier.fillMaxSize().background(Color(0xFFF5F5F5))) {
-            // GORNJI BAR PRIVATNOG ČETA
+            // GORNJI PLAVI BAR PRIVATNOG ČETA
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -285,6 +286,7 @@ fun PrivateScreen(
                 }
                 Spacer(modifier = Modifier.width(8.dp))
 
+                // 🟢 ONLINE STATUS LAMPICA U BARU LEVO OD IMENA
                 Box(
                     modifier = Modifier
                         .size(10.dp)
@@ -307,6 +309,7 @@ fun PrivateScreen(
             ) {
                 items(privateMessagesList) { chatMessage ->
                     val isMe = chatMessage.username == currentUsername
+                    val trenutniDatum = chatMessage.date.substringBefore(" ")
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -337,15 +340,8 @@ fun PrivateScreen(
                                         horizontalArrangement = Arrangement.End,
                                         modifier = Modifier.align(Alignment.End)
                                     ) {
-                                        // PANCIRNI PARSER DATUMA: Štiti aplikaciju od rušenja ukoliko baza vrati čudan string
-                                        val vreme = if (chatMessage.date.contains(" ")) {
-                                            val cistoVreme = chatMessage.date.substringAfter(" ")
-                                            if (cistoVreme.count { it == ':' } >= 2) cistoVreme.substringBeforeLast(":") else cistoVreme
-                                        } else {
-                                            "00:00"
-                                        }
-
-                                        Text(text = vreme, fontSize = 10.sp, color = if (isMe) Color(0xFFBBDEFB) else Color.Gray)
+                                        val vreme = chatMessage.date.substringAfter(" ").substringBeforeLast(":")
+                                        Text(text = vreme.ifBlank { "00:00" }, fontSize = 10.sp, color = if (isMe) Color(0xFFBBDEFB) else Color.Gray)
 
                                         // 🔒 PRIVATNI SEEN STATUS: Ispisuje "Vidjeno" samo ako si poruku poslao ti i ako je pročitana
                                         if (isMe && chatMessage.seenBy.isNotEmpty()) {
@@ -377,7 +373,7 @@ fun PrivateScreen(
                     onClick = {
                         if (privateTextInput.isNotBlank()) {
                             val porukaZaSlanje = privateTextInput
-                            privateTextInput = "" // Brišemo odmah na klijentu radi fluidnosti na UI
+                            privateTextInput = ""
 
                             coroutineScope.launch(Dispatchers.IO) {
                                 try {
@@ -392,9 +388,7 @@ fun PrivateScreen(
                                         contentType(ContentType.Application.Json)
                                         setBody(jsonBody)
                                     }
-                                } catch (e: Exception) {
-                                    Log.e("PrivateSend", "Greška pri slanju: ${e.message}")
-                                }
+                                } catch (e: Exception) { Log.e("PrivateSend", "Greška: ${e.message}") }
                             }
                         }
                     }

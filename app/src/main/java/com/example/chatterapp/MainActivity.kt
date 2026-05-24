@@ -95,101 +95,89 @@ class MainActivity : ComponentActivity() {
                 val listState = rememberLazyListState()
 
                 // Pozadinski poller (mrežna petlja) koji na 3 sekunde osvežava UI
+                // Pozadinski poller (mrežna petlja) koji na 3 sekunde osvežava UI za Grupe i Dashboard
                 LaunchedEffect(currentScreen, currentTab, activeGroupId) {
-                    if (currentScreen == Screen.CHAT && currentTab == Tab.GROUPS) {
+                    if (currentScreen == Screen.CHAT) {
                         withContext(Dispatchers.IO) {
                             while (true) {
-                                if (currentScreen != Screen.CHAT || currentTab != Tab.GROUPS) break
+                                // Ako korisnik potpuno izađe iz glavnog ekrana, prekidamo petlju
+                                if (currentScreen != Screen.CHAT) break
 
                                 try {
-                                    val savedUser =
-                                        sessionManager.getSavedUsername() ?: currentUsername.value
+                                    // --- 1. OSVEŽAVANJE ZA TAB: GROUPS (Grupe i Poruke) ---
+                                    if (currentTab == Tab.GROUPS) {
+                                        val savedUser = sessionManager.getSavedUsername() ?: currentUsername.value
 
-                                    // --- 1. OSVEŽAVANJE LISTE GRUPA ---
-                                    val responseGroups =
-                                        client.get(NetworkConfig.getGroupsUrl(savedUser))
-                                    val jsonGroups = JSONObject(responseGroups.bodyAsText())
+                                        // Osvežavanje liste grupa
+                                        val responseGroups = client.get(NetworkConfig.getGroupsUrl(savedUser))
+                                        val jsonGroups = JSONObject(responseGroups.bodyAsText())
 
-                                    if (jsonGroups.optBoolean("success", false)) {
-                                        val array = jsonGroups.getJSONArray("groups")
-                                        val list =
-                                            mutableListOf<com.example.chatterapp.screens.AndroidChatGroup>()
-                                        for (i in 0 until array.length()) {
-                                            val obj = array.getJSONObject(i)
-                                            val tvojaGrupaId = obj.getInt("id")
-                                            val stvarniUnreadCount =
-                                                if (tvojaGrupaId == activeGroupId) 0 else obj.optInt(
-                                                    "unread_count",
-                                                    0
-                                                )
+                                        if (jsonGroups.optBoolean("success", false)) {
+                                            val array = jsonGroups.getJSONArray("groups")
+                                            val list = mutableListOf<com.example.chatterapp.screens.AndroidChatGroup>()
+                                            for (i in 0 until array.length()) {
+                                                val obj = array.getJSONObject(i)
+                                                val tvojaGrupaId = obj.getInt("id")
+                                                val stvarniUnreadCount = if (tvojaGrupaId == activeGroupId) 0 else obj.optInt("unread_count", 0)
 
-                                            list.add(
-                                                com.example.chatterapp.screens.AndroidChatGroup(
-                                                    id = tvojaGrupaId,
-                                                    name = obj.getString("name"),
-                                                    isOwner = obj.optInt("is_owner", 0) == 1,
-                                                    unreadCount = stvarniUnreadCount,
-                                                    ownerName = obj.optString("owner_name", "")
-                                                )
-                                            )
-                                        }
-                                        withContext(Dispatchers.Main) { groupsList = list }
-                                    }
-                                    kotlinx.coroutines.delay(3000)
-
-                                    // --- 2. OSVEŽAVANJE PORUKA UNUTAR ČETA ---
-                                    if (activeGroupId != 0) {
-                                        val responseChat =
-                                            client.get(NetworkConfig.getChatUrl(activeGroupId))
-                                        val jsonChat = JSONObject(responseChat.bodyAsText())
-
-                                        if (jsonChat.optBoolean(
-                                                "success",
-                                                true
-                                            ) || jsonChat.has("messages")
-                                        ) {
-                                            val jsonArray = jsonChat.getJSONArray("messages")
-                                            val listMsg = mutableListOf<ChatMessage>()
-                                            for (i in 0 until jsonArray.length()) {
-                                                val obj = jsonArray.getJSONObject(i)
-                                                val seenArray = obj.optJSONArray("seen_by")
-                                                val seenList = mutableListOf<String>()
-                                                if (seenArray != null) {
-                                                    for (j in 0 until seenArray.length()) seenList.add(
-                                                        seenArray.getString(j)
-                                                    )
-                                                }
-                                                listMsg.add(
-                                                    ChatMessage(
-                                                        username = obj.optString(
-                                                            "username",
-                                                            "Anonimno"
-                                                        ),
-                                                        message = obj.optString("message", ""),
-                                                        date = obj.optString("sent_at", ""),
-                                                        seenBy = seenList
+                                                list.add(
+                                                    com.example.chatterapp.screens.AndroidChatGroup(
+                                                        id = tvojaGrupaId,
+                                                        name = obj.getString("name"),
+                                                        isOwner = obj.optInt("is_owner", 0) == 1,
+                                                        unreadCount = stvarniUnreadCount,
+                                                        ownerName = obj.optString("owner_name", "")
                                                     )
                                                 )
                                             }
-                                            withContext(Dispatchers.Main) { messagesList = listMsg }
+                                            withContext(Dispatchers.Main) { groupsList = list }
+                                        }
+
+                                        // Osvežavanje poruka unutar četa
+                                        if (activeGroupId != 0) {
+                                            val responseChat = client.get(NetworkConfig.getChatUrl(activeGroupId))
+                                            val jsonChat = JSONObject(responseChat.bodyAsText())
+
+                                            if (jsonChat.optBoolean("success", true) || jsonChat.has("messages")) {
+                                                val jsonArray = jsonChat.getJSONArray("messages")
+                                                val listMsg = mutableListOf<ChatMessage>()
+                                                for (i in 0 until jsonArray.length()) {
+                                                    val obj = jsonArray.getJSONObject(i)
+                                                    val seenArray = obj.optJSONArray("seen_by")
+                                                    val seenList = mutableListOf<String>()
+                                                    if (seenArray != null) {
+                                                        for (j in 0 until seenArray.length()) seenList.add(seenArray.getString(j))
+                                                    }
+                                                    listMsg.add(
+                                                        ChatMessage(
+                                                            username = obj.optString("username", "Anonimno"),
+                                                            message = obj.optString("message", ""),
+                                                            date = obj.optString("sent_at", ""),
+                                                            seenBy = seenList
+                                                        )
+                                                    )
+                                                }
+                                                withContext(Dispatchers.Main) { messagesList = listMsg }
+                                            }
                                         }
                                     }
+
+                                    // --- 2. OSVEŽAVANJE ZA TAB: DASHBOARD (Oglasna Tabla) ---
+                                    if (currentTab == Tab.DASHBOARD) {
+                                        // Koristimo isSilent = true da se brojači i srce osveže tiho i smooth bez treperenja ekrana!
+                                        dashboardViewModel.loadDashboardData(isSilent = true)
+                                    }
+
                                 } catch (e: Exception) {
                                     Log.e("ChatterPolling", "Greška u petlji: ${e.message}")
                                 }
+
+                                // Jedinstvena pauza od 3 sekunde za aktivni tab
                                 kotlinx.coroutines.delay(3000)
                             }
                         }
                     }
                 }
-                if (currentScreen == Screen.CHAT && currentTab == Tab.DASHBOARD) {
-                    try {
-                        dashboardViewModel.loadDashboardData()
-                    } catch (e: Exception) {
-                        e.printStackTrace()
-                    }
-                }
-
                 // Osvežavamo Dashboard u pozadini svake 3 sekunde, potpuno nevidljivo za korisnika
                 if (currentScreen == Screen.CHAT && currentTab == Tab.DASHBOARD) {
                     try {

@@ -150,18 +150,24 @@ class DashboardViewModel(
                     if (commentsArray != null) {
                         for (i in 0 until commentsArray.length()) {
                             val cObj = commentsArray.getJSONObject(i)
+
+                            // Osiguravamo se da pročitamo ime autora bez obzira na ključ sa servera
+                            val autorKomentara = cObj.optString("commenter_name", "").ifEmpty { cObj.optString("username", "Korisnik") }
+
                             parsedComments.add(
                                 DashboardComment(
                                     id = cObj.optInt("id", 0),
-                                    postId = cObj.optInt("news_id", 0),
+                                    // POPRAVLJENO: Prosleđujemo tačan postId funkcije umesto nepostojećeg news_id iz JSON-a
+                                    postId = postId,
                                     userId = cObj.optInt("user_id", 0),
                                     commentText = cObj.optString("comment_text", ""),
                                     createdAt = cObj.optString("created_at", ""),
-                                    commenterName = cObj.optString("commenter_name", "Korisnik")
+                                    commenterName = autorKomentara
                                 )
                             )
                         }
                     }
+
                     _comments.value = parsedComments
                 }
             } catch (e: Exception) {
