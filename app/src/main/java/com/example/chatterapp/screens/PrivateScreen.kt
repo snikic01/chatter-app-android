@@ -64,11 +64,10 @@ fun PrivateScreen(
     // Searchbar (Ispravljen sa engleskim slovom C na kraju da se reše greške 302 i 309!)
     var searchQuery by remember { mutableStateOf("") }
 
-    // 🛠️ KONAČNA POPRAVKA: Dodajemo remember(chatsList) koji razbija blokadu memorije telefona!
-    // Čim server vrati očišćene podatke, ovaj filter briše sve ostale korisnike sa ekrana.
+    // 🛠️ POPRAVKA: Vraćamo standardni filter koji prikazuje SVE tvoje prave prijatelje sa servera!
     val filtriraniCatovi = remember(chatsList, searchQuery) {
-        chatsList.filter {
-            it.username.contains(searchQuery, ignoreCase = true)
+        chatsList.filter { chat ->
+            chat.username.contains(searchQuery, ignoreCase = true)
         }
     }
 
