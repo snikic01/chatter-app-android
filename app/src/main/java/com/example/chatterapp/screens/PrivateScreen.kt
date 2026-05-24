@@ -410,7 +410,17 @@ fun PrivateScreen(
                     onClick = {
                         if (privateTextInput.isNotBlank()) {
                             val porukaZaSlanje = privateTextInput
-                            privateTextInput = ""
+                            privateTextInput = "" // Brišemo odmah na klijentu radi fluidnosti na UI
+
+                            // 🛠️ LOKALNI OPTIMIZAM: Momentano ubacujemo tvoju poruku na ekran u roku od 1 ms!
+                            // Korisnik vidi poruku odmah, bez čekanja da prođu 3 sekunde polinga.
+                            val novaLokalnaPoruka = ChatMessage(
+                                username = currentUsername,
+                                message = porukaZaSlanje.trim(),
+                                date = " Slanje...", // Privremeni tekst dok poler ne donese tačan PHP timestamp
+                                seenBy = emptyList()
+                            )
+                            privateMessagesList = privateMessagesList + novaLokalnaPoruka
 
                             coroutineScope.launch(Dispatchers.IO) {
                                 try {
@@ -425,7 +435,9 @@ fun PrivateScreen(
                                         contentType(ContentType.Application.Json)
                                         setBody(jsonBody)
                                     }
-                                } catch (e: Exception) { Log.e("PrivateSend", "Greška: ${e.message}") }
+                                } catch (e: Exception) {
+                                    Log.e("PrivateSend", "Greška: ${e.message}")
+                                }
                             }
                         }
                     }
