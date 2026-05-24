@@ -63,7 +63,7 @@ fun PrivateScreen(
 
     // Searchbar:
     var searchQuery by remember { mutableStateOf("") }
-    val filtriraniČatovi = chatsList.filter {
+    val filtriraniCatovi = chatsList.filter {
         it.username.contains(searchQuery, ignoreCase = true)
     }
 
@@ -293,14 +293,14 @@ fun PrivateScreen(
                     modifier = Modifier.fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    if (filtriraniČatovi.isEmpty() && searchQuery.isNotBlank()) {
+                    if (filtriraniCatovi.isEmpty() && searchQuery.isNotBlank()) {
                         item {
                             Box(modifier = Modifier.fillMaxWidth().padding(top = 24.dp), contentAlignment = Alignment.Center) {
                                 Text("Nema pronađenih prijatelja", color = Color.Gray)
                             }
                         }
                     } else {
-                        items(filtriraniČatovi) { chat ->
+                        items(filtriraniCatovi) { chat ->
                             Card(
                                 modifier = Modifier
                                     .fillMaxWidth()
