@@ -114,23 +114,19 @@ fun PrivateScreen(
             delay(3000)
         }
     }
-
-    // --- 2. POLING ZA ISTORIJU PORUKA (Radi samo kada uđeš u čet sa nekim) ---
     // --- 1. POLING ZA LISTU PRIVATNIH ČETOVA (Svake 3 sekunde) ---
     LaunchedEffect(activeChatUserId) {
         while (true) {
             try {
-                // POPRAVLJENO: Šaljemo čist URL, a Ktor sam bezbedno pakuje GET parametre!
-                val response = withContext(Dispatchers.IO) {
-                    client.get(NetworkConfig.getPrivateSendApiUrl()) {
-                        url {
-                            parameters.append("action", "list")
-                            parameters.append("username", currentUsername)
-                        }
-                    }
-                }
-                val json = JSONObject(response.bodyAsText())
+                // Dodajemo System.currentTimeMillis() na kraj URL-a da razbijemo keš memoriju telefona!
+                val url = NetworkConfig.getPrivateChatsUrl(currentUsername) + "&_nocache=" + System.currentTimeMillis()
+                val response = withContext(Dispatchers.IO) { client.get(url) }
+                val responseText = response.bodyAsText()
 
+                // 🔍 OVO ĆE NAM REĆI SVE: Ispisujemo u Logcat tačan JSON koji stiže
+                Log.d("ChatterBUG", "LISTA SA SERVERA: $responseText")
+
+                val json = JSONObject(responseText)
                 if (json.optBoolean("success", false)) {
                     val array = json.getJSONArray("chats")
                     val tempList = mutableListOf<AndroidPrivateChat>()
@@ -138,8 +134,6 @@ fun PrivateScreen(
                     for (i in 0 until array.length()) {
                         val obj = array.getJSONObject(i)
                         val chatUserId = obj.getInt("id")
-
-                        // Ako korisnik trenutno gleda ovaj čet, nepročitane poruke su 0
                         val stvarniUnread = if (chatUserId == activeChatUserId) 0 else obj.optInt("unread_count", 0)
 
                         tempList.add(
@@ -154,7 +148,6 @@ fun PrivateScreen(
                     }
                     chatsList = tempList
 
-                    // Ako je otvoren čet, ažuriramo online status u gornjem baru uživo
                     val trenutniChat = tempList.find { it.id == activeChatUserId }
                     if (trenutniChat != null) {
                         activeChatUserOnline = trenutniChat.isOnline
@@ -164,6 +157,49 @@ fun PrivateScreen(
                 Log.e("PrivateChats", "Greška u poleru lista: ${e.message}")
             }
             delay(3000)
+        }
+    }
+
+    // --- 2. POLING ZA ISTORIJU PORUKA (Radi samo kada uđeš u čet sa nekim) ---
+    LaunchedEffect(activeChatUserId) {
+        onChatToggle(activeChatUserId != 0)
+        if (activeChatUserId != 0) {
+            while (activeChatUserId != 0) {
+                try {
+                    // Razbijanje keša i za istoriju poruka unutar četa
+                    val url = NetworkConfig.getPrivateChatUrl(currentUsername, activeChatUserId) + "&_nocache=" + System.currentTimeMillis()
+                    val response = withContext(Dispatchers.IO) { client.get(url) }
+                    val responseText = response.bodyAsText()
+
+                    // 🔍 Pratimo istoriju poruka u Logcat-u
+                    Log.d("ChatterBUG", "PORUKE SA SERVERA: $responseText")
+
+                    val json = JSONObject(responseText)
+                    if (json.optBoolean("success", false) || json.has("messages")) {
+                        val array = json.getJSONArray("messages")
+                        val tempList = mutableListOf<ChatMessage>()
+
+                        for (i in 0 until array.length()) {
+                            val obj = array.getJSONObject(i)
+                            val daLiJeVidjeno = obj.optInt("seen", 0) == 1
+                            val seenList = if (daLiJeVidjeno) listOf("Vidjeno") else emptyList()
+
+                            tempList.add(
+                                ChatMessage(
+                                    username = obj.getString("username"),
+                                    message = obj.getString("message"),
+                                    date = obj.getString("date"),
+                                    seenBy = seenList
+                                )
+                            )
+                        }
+                        privateMessagesList = tempList
+                    }
+                } catch (e: Exception) {
+                    Log.e("PrivateMessages", "Greška u poleru poruka: ${e.message}")
+                }
+                delay(3000)
+            }
         }
     }
 
