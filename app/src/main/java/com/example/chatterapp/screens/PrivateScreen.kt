@@ -118,13 +118,14 @@ fun PrivateScreen(
     LaunchedEffect(activeChatUserId) {
         while (true) {
             try {
-                // Dodajemo System.currentTimeMillis() na kraj URL-a da razbijemo keš memoriju telefona!
-                val url = NetworkConfig.getPrivateChatsUrl(currentUsername) + "&_nocache=" + System.currentTimeMillis()
-                val response = withContext(Dispatchers.IO) { client.get(url) }
+                // REŠENJE: Direktan i neprobojan URL ka tvom privatnom API-ju sa razbijanjem keša
+                val fiksniUrl = "https://ts.net" + System.currentTimeMillis()
+
+                val response = withContext(Dispatchers.IO) { client.get(fiksniUrl) }
                 val responseText = response.bodyAsText()
 
-                // 🔍 OVO ĆE NAM REĆI SVE: Ispisujemo u Logcat tačan JSON koji stiže
-                Log.d("ChatterBUG", "LISTA SA SERVERA: $responseText")
+                // Štampaćemo u Logcat da vidimo da li smo konačno dobili privatne četove umesto dashboarda
+                Log.d("ChatterBUG_Private", "PRIVATNA LISTA: $responseText")
 
                 val json = JSONObject(responseText)
                 if (json.optBoolean("success", false)) {
@@ -134,6 +135,7 @@ fun PrivateScreen(
                     for (i in 0 until array.length()) {
                         val obj = array.getJSONObject(i)
                         val chatUserId = obj.getInt("id")
+
                         val stvarniUnread = if (chatUserId == activeChatUserId) 0 else obj.optInt("unread_count", 0)
 
                         tempList.add(
@@ -166,13 +168,13 @@ fun PrivateScreen(
         if (activeChatUserId != 0) {
             while (activeChatUserId != 0) {
                 try {
-                    // Razbijanje keša i za istoriju poruka unutar četa
-                    val url = NetworkConfig.getPrivateChatUrl(currentUsername, activeChatUserId) + "&_nocache=" + System.currentTimeMillis()
-                    val response = withContext(Dispatchers.IO) { client.get(url) }
+                    // Direktan URL za istoriju poruka sa selektovanim prijateljem
+                    val fiksniChatUrl = "https://ts.net" + System.currentTimeMillis()
+
+                    val response = withContext(Dispatchers.IO) { client.get(fiksniChatUrl) }
                     val responseText = response.bodyAsText()
 
-                    // 🔍 Pratimo istoriju poruka u Logcat-u
-                    Log.d("ChatterBUG", "PORUKE SA SERVERA: $responseText")
+                    Log.d("ChatterBUG_Private", "PRIVATNE PORUKE: $responseText")
 
                     val json = JSONObject(responseText)
                     if (json.optBoolean("success", false) || json.has("messages")) {
