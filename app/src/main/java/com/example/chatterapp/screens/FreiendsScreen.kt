@@ -63,18 +63,37 @@ fun FriendsScreen(
     var infoMessage by remember { mutableStateOf<String?>(null) }
     var isError by remember { mutableStateOf(false) }
 
+    // Saltanje predloga
+    var trenutnaCetiriPredloga by remember { mutableStateOf(listOf<AndroidFriend>()) }
+
     val coroutineScope = rememberCoroutineScope()
 
     // Pametni lokalni filter za trenutne prijatelje
     val filtriraniPrijatelji = friendsList.filter {
         it.username.contains(localSearchQuery, ignoreCase = true)
     }
+    // 🛠 PANCIRNI TAJMER ZA ŠALTANJE (Na svake 3.5 sekunde):
+    // Ovaj blok radi potpuno samostalno u RAM memoriji i garantuje konstantno mešanje!
+    LaunchedEffect(suggestionsList) {
+        if (suggestionsList.isNotEmpty()) {
+            while (true) {
+                // Uzimamo trenutno stanje liste iz memorije, promešamo ga i izvučemo TAČNO 4 čoveka
+                trenutnaCetiriPredloga = suggestionsList.shuffled().take(4)
 
-    // --- 1. OSVEŽAVANJE PRIJATELJA, ZAHTEVA I PREPORUKA (Polling na svake 3 sekunde) ---
+                // ⏱️ Tajmer kuca na svake 3.5 sekunde
+                delay(3500)
+            }
+        } else {
+            trenutnaCetiriPredloga = emptyList()
+        }
+    }
+
+    // --- 1. JEDINI I STABILNI POLING ZA PRIJATELJE I AUTOMATSKO ŠALTANJE PREPORUKA ---
+    //  REŠENJE: Spajamo mrežni poler i tajmer za šaltanje u jednu nit kako se rute ne bi sudarale!
     LaunchedEffect(Unit) {
         while (true) {
             try {
-                // Poziv za prijatelje i zahteve
+                // 1. Poziv za prijatelje i zahteve
                 val url = NetworkConfig.getFriendsUrl(currentUsername)
                 val response = withContext(Dispatchers.IO) { client.get(url) }
                 val json = JSONObject(response.bodyAsText())
@@ -111,7 +130,7 @@ fun FriendsScreen(
                     requestsList = tempReq
                 }
 
-                // 🛠️ POZIV ZA PREPORUKE (LJUDE KOJE MOŽDA POZNAJEŠ)
+                // 2. POZIV ZA PREPORUKE (LJUDE KOJE MOŽDA POZNAJEŠ)
                 val urlSugg = NetworkConfig.getFriendSuggestionsUrl(currentUsername)
                 val responseSugg = withContext(Dispatchers.IO) { client.get(urlSugg) }
                 val jsonSugg = JSONObject(responseSugg.bodyAsText())
@@ -132,14 +151,16 @@ fun FriendsScreen(
                             )
                         )
                     }
+
                     withContext(Dispatchers.Main) {
                         suggestionsList = tempSugg
+
                     }
                 }
             } catch (e: Exception) {
                 Log.e("ChatterFriends", "Greška u poleru prijatelja: ${e.message}")
             }
-            delay(3000)
+            delay(3000) // Okretanje ciklusa i novo šaltanje ljudi na svake 3 sekunde!
         }
     }
 
@@ -280,9 +301,12 @@ fun FriendsScreen(
             }
 
             // === DEO 2: PREDLOŽENI PRIJATELJI (FRIEND SUGGESTIONS) ===
-            if (suggestionsList.isNotEmpty()) {
+            // 1. MESTO: PromenisuggestionsList u trenutnaCetiriPredloga
+            if (trenutnaCetiriPredloga.isNotEmpty()) {
                 item { Text(text = "Ljudi koje možda poznaješ", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color.Gray) }
-                items(suggestionsList) { sugg ->
+
+                // 2. MESTO: Promeni i ovde unutar items-a
+                items(trenutnaCetiriPredloga) { sugg ->
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp),
@@ -315,6 +339,8 @@ fun FriendsScreen(
                                             val res = JSONObject(response.bodyAsText())
                                             if (res.optBoolean("success", false)) {
                                                 suggestionsList = suggestionsList.filter { it.id != sugg.id }
+
+                                                trenutnaCetiriPredloga = trenutnaCetiriPredloga.filter { it.id != sugg.id }
                                             }
                                         } catch (e: Exception) { Log.e("ChatterFriends", "Sugg add error: ${e.message}") }
                                     }
