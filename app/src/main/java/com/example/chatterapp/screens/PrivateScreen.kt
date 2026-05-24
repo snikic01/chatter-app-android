@@ -132,33 +132,33 @@ fun PrivateScreen(
                 val responseText = response.bodyAsText()
 
                 val json = JSONObject(responseText)
-                if (json.optBoolean("success", false)) {
-                    val array = json.getJSONArray("chats")
-                    val tempList = mutableListOf<AndroidPrivateChat>()
+                //if (json.optBoolean("success", false)) {
+                //    val array = json.getJSONArray("chats")
+                //    val tempList = mutableListOf<AndroidPrivateChat>()
 
-                    for (i in 0 until array.length()) {
-                        val obj = array.getJSONObject(i)
-                        val chatUserId = obj.getInt("id")
+                //    for (i in 0 until array.length()) {
+                //        val obj = array.getJSONObject(i)
+                //        val chatUserId = obj.getInt("id")
 
-                        val stvarniUnread = if (chatUserId == activeChatUserId) 0 else obj.optInt("unread_count", 0)
+                //        val stvarniUnread = if (chatUserId == activeChatUserId) 0 else obj.optInt("unread_count", 0)
 
-                        tempList.add(
-                            AndroidPrivateChat(
-                                id = chatUserId,
-                                username = obj.getString("username"),
-                                isOnline = obj.optInt("is_online", 0) == 1,
-                                lastMessage = obj.optString("last_message", "Nema poruka"),
-                                unreadCount = stvarniUnread
-                            )
-                        )
-                    }
-                    chatsList = tempList
+                //        tempList.add(
+                //           AndroidPrivateChat(
+                //                id = chatUserId,
+                //                username = obj.getString("username"),
+                //                isOnline = obj.optInt("is_online", 0) == 1,
+                //                lastMessage = obj.optString("last_message", "Nema poruka"),
+                //                unreadCount = stvarniUnread
+                //            )
+                //        )
+                //    }
+                //    chatsList = tempList
 
-                    val trenutniChat = tempList.find { it.id == activeChatUserId }
-                    if (trenutniChat != null) {
-                        activeChatUserOnline = trenutniChat.isOnline
-                    }
-                }
+                //    val trenutniChat = tempList.find { it.id == activeChatUserId }
+                //    if (trenutniChat != null) {
+                //        activeChatUserOnline = trenutniChat.isOnline
+                //    }
+                //}
             } catch (e: Exception) {
                 Log.e("PrivateChats", "Greška u poleru lista: ${e.message}")
             }
