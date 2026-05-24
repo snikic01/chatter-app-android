@@ -19,7 +19,6 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Delete
@@ -37,6 +36,10 @@ import androidx.compose.ui.unit.sp
 import com.example.chatterapp.data.ChatMessage
 
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+
+
 
 // Tvoj lokalni model proširen poljem unreadCount za brojač sa sajta
 data class AndroidChatGroup(
@@ -61,6 +64,11 @@ fun GroupsScreen(
     groupsList: List<AndroidChatGroup>,
     client: io.ktor.client.HttpClient // 👈 POSLEDNJI PARAMETAR JE KLIJENT!
 ) {
+
+    // Dijalozi za kreiranje grupe:
+    var prikaziDialogZaGrupu by remember { mutableStateOf(false) }
+    var nazivNoveGrupe by remember { mutableStateOf("") }
+
 
     var showMembersDialog by remember { mutableStateOf(false) }
     var showMenu by remember { mutableStateOf(false) }
@@ -150,8 +158,91 @@ fun GroupsScreen(
                         fontWeight = FontWeight.Bold
                     )
                 })
+            },
+            //  DOPUNA: Plutajuće plavo "+" dugme ubačeno peške unutar Scaffold-a
+            floatingActionButton = {
+                FloatingActionButton(
+                    onClick = { prikaziDialogZaGrupu = true },
+                    containerColor = Color(0xFF2196F3),
+                    contentColor = Color.White
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = "Nova grupa"
+                    )
+                }
             }
         ) { paddingValues ->
+
+            // 🛠️ KONAČNA POPRAVKA: Dijalog je ubačen TAČNO ovde unutar paddingValues-a!
+            // Sada će se garantovano rendersovati preko celog ekrana tvog Samsunga S9+
+            if (prikaziDialogZaGrupu) {
+                AlertDialog(
+                    onDismissRequest = {
+                        prikaziDialogZaGrupu = false
+                        nazivNoveGrupe = ""
+                    },
+                    title = { Text("Kreiraj novu grupu", fontWeight = FontWeight.Bold) },
+                    text = {
+                        OutlinedTextField(
+                            value = nazivNoveGrupe,
+                            onValueChange = { nazivNoveGrupe = it },
+                            placeholder = { Text("Unesite ime grupe...") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    },
+                    confirmButton = {
+                        Button(
+                            onClick = {
+                                if (nazivNoveGrupe.isNotBlank()) {
+                                    val imeGrupe = nazivNoveGrupe.trim()
+                                    prikaziDialogZaGrupu = false
+                                    nazivNoveGrupe = ""
+
+                                    // Okidamo kreiranje grupe u pozadinskoj niti na serveru
+                                    coroutineScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                                        try {
+                                            val jsonBody = JSONObject().apply {
+                                                put("action", "create")
+                                                put("username", currentUsername)
+                                                put("group_name", imeGrupe) // Šaljemo tačan ključ za tvoj group-actions/create.php
+                                            }.toString()
+
+                                            // Šaljemo zahtev na tvoju centralnu rutu za grupe
+                                            client.post(com.example.chatterapp.data.NetworkConfig.getMembersApiUrl()) {
+                                                contentType(io.ktor.http.ContentType.Application.Json)
+                                                setBody(jsonBody)
+                                            }
+
+                                            // Tvoj PHP 'create.php' uspešno upisuje novu grupu u bazu pod novim najvećim ID-jem!
+                                            // Pozadinski poler u MainScaffold-u će u sledećoj sekundi automatski povući podatke,
+                                            // i pošto tvoj 'list.php' sortira po ID DESC, nova grupa će sama od sebe skočiti na VRH!
+
+                                        } catch (e: Exception) {
+                                            android.util.Log.e("GroupsCreate", "Greška pri kreiranju: ${e.message}")
+                                        }
+                                    }
+                                }
+                            }
+                        ) {
+                            Text("Napravi")
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(
+                            onClick = {
+                                prikaziDialogZaGrupu = false
+                                nazivNoveGrupe = ""
+                            }
+                        ) {
+                            Text("Poništi")
+                        }
+                    }
+                )
+            }
+
+            // Tvoja lista grupa kreće odmah ispod dijaloga
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
@@ -216,7 +307,6 @@ fun GroupsScreen(
                 listState.animateScrollToItem(messagesList.size - 1)
             }
         }
-
         // --- POPRAVLJENO: Poler koji automatski osvežava lampice na 3 sekunde dok je dijalog otvoren ---
         LaunchedEffect(showMembersDialog) {
             if (showMembersDialog && activeGroupId != 0) {
