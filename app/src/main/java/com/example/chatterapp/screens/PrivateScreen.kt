@@ -116,41 +116,54 @@ fun PrivateScreen(
     }
 
     // --- 2. POLING ZA ISTORIJU PORUKA (Radi samo kada uđeš u čet sa nekim) ---
+    // --- 1. POLING ZA LISTU PRIVATNIH ČETOVA (Svake 3 sekunde) ---
     LaunchedEffect(activeChatUserId) {
-        onChatToggle(activeChatUserId != 0)
-        if (activeChatUserId != 0) {
-            while (activeChatUserId != 0) {
-                try {
-                    val url = NetworkConfig.getPrivateChatUrl(currentUsername, activeChatUserId)
-                    val response = withContext(Dispatchers.IO) { client.get(url) }
-                    val json = JSONObject(response.bodyAsText())
-
-                    if (json.optBoolean("success", false) || json.has("messages")) {
-                        val array = json.getJSONArray("messages")
-                        val tempList = mutableListOf<ChatMessage>()
-
-                        for (i in 0 until array.length()) {
-                            val obj = array.getJSONObject(i)
-                            // Za viđeno povlačimo informaciju da li je seen == 1 (1 je viđeno, 0 nije)
-                            val daLiJeVidjeno = obj.optInt("seen", 0) == 1
-                            val seenList = if (daLiJeVidjeno) listOf("Vidjeno") else emptyList()
-
-                            tempList.add(
-                                ChatMessage(
-                                    username = obj.getString("username"),
-                                    message = obj.getString("message"),
-                                    date = obj.getString("date"),
-                                    seenBy = seenList // Koristimo tvoj uslov za privatni čet
-                                )
-                            )
+        while (true) {
+            try {
+                // POPRAVLJENO: Šaljemo čist URL, a Ktor sam bezbedno pakuje GET parametre!
+                val response = withContext(Dispatchers.IO) {
+                    client.get(NetworkConfig.getPrivateSendApiUrl()) {
+                        url {
+                            parameters.append("action", "list")
+                            parameters.append("username", currentUsername)
                         }
-                        privateMessagesList = tempList
                     }
-                } catch (e: Exception) {
-                    Log.e("PrivateMessages", "Greška u poleru poruka: ${e.message}")
                 }
-                delay(3000)
+                val json = JSONObject(response.bodyAsText())
+
+                if (json.optBoolean("success", false)) {
+                    val array = json.getJSONArray("chats")
+                    val tempList = mutableListOf<AndroidPrivateChat>()
+
+                    for (i in 0 until array.length()) {
+                        val obj = array.getJSONObject(i)
+                        val chatUserId = obj.getInt("id")
+
+                        // Ako korisnik trenutno gleda ovaj čet, nepročitane poruke su 0
+                        val stvarniUnread = if (chatUserId == activeChatUserId) 0 else obj.optInt("unread_count", 0)
+
+                        tempList.add(
+                            AndroidPrivateChat(
+                                id = chatUserId,
+                                username = obj.getString("username"),
+                                isOnline = obj.optInt("is_online", 0) == 1,
+                                lastMessage = obj.optString("last_message", "Nema poruka"),
+                                unreadCount = stvarniUnread
+                            )
+                        )
+                    }
+                    chatsList = tempList
+
+                    // Ako je otvoren čet, ažuriramo online status u gornjem baru uživo
+                    val trenutniChat = tempList.find { it.id == activeChatUserId }
+                    if (trenutniChat != null) {
+                        activeChatUserOnline = trenutniChat.isOnline
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("PrivateChats", "Greška u poleru lista: ${e.message}")
             }
+            delay(3000)
         }
     }
 
