@@ -62,14 +62,48 @@ fun PrivateScreen(
     var privateTextInput by remember { mutableStateOf("") }
 
     // Searchbar (Ispravljen sa engleskim slovom C na kraju da se reše greške 302 i 309!)
+    // Searchbar:
     var searchQuery by remember { mutableStateOf("") }
 
-    // 🛠️ POPRAVKA: Vraćamo standardni filter koji prikazuje SVE tvoje prave prijatelje sa servera!
-    val filtriraniCatovi = remember(chatsList, searchQuery) {
-        chatsList.filter { chat ->
-            chat.username.contains(searchQuery, ignoreCase = true)
+    //  NOVO STANJE: Držimo listu validnih korisničkih imena prijatelja sa servera
+    var listaPravihPrijatelja by remember { mutableStateOf(listOf<String>()) }
+
+    //  OKIDAMO POZIV KA API_FRIENDS: Povlačimo čist spisak prijatelja uživo da razbijemo keš bag!
+    LaunchedEffect(Unit) {
+        try {
+            val urlPrijatelja = NetworkConfig.getFriendsUrl(currentUsername)
+            val response = withContext(Dispatchers.IO) { client.get(urlPrijatelja) }
+            val json = JSONObject(response.bodyAsText())
+
+            if (json.optBoolean("success", false)) {
+                // Tvoj api_friends.php vraća niz pod ključem "friends" ili "users"
+                val array = json.optJSONArray("friends") ?: json.optJSONArray("users") ?: org.json.JSONArray()
+                val imenaNiz = mutableListOf<String>()
+
+                for (i in 0 until array.length()) {
+                    val obj = array.getJSONObject(i)
+                    imenaNiz.add(obj.getString("username"))
+                }
+                // Uvek ručno dodajemo i Stefana za svaki slučaj
+                if (!imenaNiz.contains("stefan")) imenaNiz.add("stefan")
+
+                listaPravihPrijatelja = imenaNiz
+            }
+        } catch (e: Exception) {
+            Log.e("PrivateFriendsFilter", "Greška pri povlačenju filtera: ${e.message}")
         }
     }
+
+    //  DINAMIČKI PANCIRNI FILTER: Propušta samo ljude koji se nalaze u listi prihvaćenih prijatelja!
+    val filtriraniCatovi = remember(chatsList, searchQuery, listaPravihPrijatelja) {
+        chatsList.filter { chat ->
+            // Korisnik prolazi samo ako je u našem čistom nizu prijatelja uživo
+            val jeLiPraviPrijatelj = listaPravihPrijatelja.any { it.equals(chat.username, ignoreCase = true) }
+
+            jeLiPraviPrijatelj && chat.username.contains(searchQuery, ignoreCase = true)
+        }
+    }
+
 
     val coroutineScope = rememberCoroutineScope()
     val privateListState = rememberLazyListState()
