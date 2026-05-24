@@ -169,7 +169,7 @@ fun PrivateScreen(
             while (activeChatUserId != 0) {
                 try {
                     // Direktan URL za istoriju poruka sa selektovanim prijateljem
-                    val fiksniChatUrl = "https://ts.net" + System.currentTimeMillis()
+                    val fiksniChatUrl = "https://nikiclab01.tailfd4e2c.ts.net" + System.currentTimeMillis()
 
                     val response = withContext(Dispatchers.IO) { client.get(fiksniChatUrl) }
                     val responseText = response.bodyAsText()
