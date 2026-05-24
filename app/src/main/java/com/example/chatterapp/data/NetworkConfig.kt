@@ -88,4 +88,7 @@ object NetworkConfig {
     fun getAddCommentUrl(userId: Int, username: String, postId: Int, commentText: String): String =
         "${BASE_URL}api_dashboard.php?action=comment_add&user_id=$userId&username=$username&post_id=$postId&comment_text=${java.net.URLEncoder.encode(commentText, "UTF-8")}"
 
+    // Ruta za AdminLogs:
+    fun getAdminLogsApiUrl(username: String): String =
+        "${BASE_URL}api_AdminLogs.php?action=list&username=$username"
 }

@@ -50,6 +50,8 @@ fun DashboardScreen(
     var showLogsDialog by remember { mutableStateOf(false) }
     var activeCommentsPostId by remember { mutableStateOf<Int?>(null) }
     var editingPost by remember { mutableStateOf<DashboardPost?>(null) }
+
+
     val keyboardController = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
 
 
