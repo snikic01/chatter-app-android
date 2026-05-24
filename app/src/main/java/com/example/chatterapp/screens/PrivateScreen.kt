@@ -61,126 +61,33 @@ fun PrivateScreen(
     var privateMessagesList by remember { mutableStateOf(listOf<ChatMessage>()) }
     var privateTextInput by remember { mutableStateOf("") }
 
-    // Searchbar:
+    // Searchbar (Ispravljen sa engleskim slovom C na kraju da se reše greške 302 i 309!)
     var searchQuery by remember { mutableStateOf("") }
-    val filtriraniCatovi = chatsList.filter {
-        it.username.contains(searchQuery, ignoreCase = true)
-    }
 
+    // Omotano u remember blok da Compose odmah reaguje čim server vrati očišćene prijatelje
+    val filtriraniCatovi = remember(chatsList, searchQuery) {
+        chatsList.filter {
+            it.username.contains(searchQuery, ignoreCase = true)
+        }
+    }
 
     val coroutineScope = rememberCoroutineScope()
     val privateListState = rememberLazyListState()
 
-    // --- 1. POLING ZA LISTU PRIVATNIH ČETOVA (Svake 3 sekunde) ---
-    LaunchedEffect(Unit) {
-        while (true) {
-            try {
-                val url = NetworkConfig.getPrivateChatsUrl(currentUsername)
-                val response = withContext(Dispatchers.IO) { client.get(url) }
-                val json = JSONObject(response.bodyAsText())
-
-                if (json.optBoolean("success", false)) {
-                    val array = json.getJSONArray("chats")
-                    val tempList = mutableListOf<AndroidPrivateChat>()
-
-                    for (i in 0 until array.length()) {
-                        val obj = array.getJSONObject(i)
-                        val chatUserId = obj.getInt("id")
-
-                        // Ako korisnik trenutno gleda ovaj čet, nepročitane poruke su 0
-                        val stvarniUnread = if (chatUserId == activeChatUserId) 0 else obj.optInt("unread_count", 0)
-
-                        tempList.add(
-                            AndroidPrivateChat(
-                                id = chatUserId,
-                                username = obj.getString("username"),
-                                isOnline = obj.optInt("is_online", 0) == 1,
-                                lastMessage = obj.optString("last_message", "Nema poruka"),
-                                unreadCount = stvarniUnread
-                            )
-                        )
-                    }
-                    chatsList = tempList
-
-                    // Ako je otvoren čet, ažuriramo online status u gornjem baru uživo
-                    val trenutniChat = tempList.find { it.id == activeChatUserId }
-                    if (trenutniChat != null) {
-                        activeChatUserOnline = trenutniChat.isOnline
-                    }
-                }
-            } catch (e: Exception) {
-                Log.e("PrivateChats", "Greška u poleru lista: ${e.message}")
-            }
-            delay(3000)
-        }
-    }
-    // --- 1. POLING ZA LISTU PRIVATNIH ČETOVA (Svake 3 sekunde) ---
-    LaunchedEffect(activeChatUserId) {
-        while (true) {
-            try {
-                // REŠENJE: Šaljemo POST zahtev sa JSON telom na čist privatni URL
-                val response = withContext(Dispatchers.IO) {
-                    client.post(NetworkConfig.getPrivateSendApiUrl()) {
-                        contentType(ContentType.Application.Json)
-                        setBody(
-                            JSONObject().apply {
-                                put("action", "list")
-                                put("username", currentUsername)
-                            }.toString()
-                        )
-                    }
-                }
-                val responseText = response.bodyAsText()
-
-                val json = JSONObject(responseText)
-                if (json.optBoolean("success", false)) {
-                    val array = json.getJSONArray("chats")
-                    val tempList = mutableListOf<AndroidPrivateChat>()
-
-                    for (i in 0 until array.length()) {
-                        val obj = array.getJSONObject(i)
-                        val chatUserId = obj.getInt("id")
-                        val stvarniUnread = if (chatUserId == activeChatUserId) 0 else obj.optInt("unread_count", 0)
-
-                        tempList.add(
-                            AndroidPrivateChat(
-                                id = chatUserId,
-                                username = obj.getString("username"),
-                                isOnline = obj.optInt("is_online", 0) == 1,
-                                lastMessage = obj.optString("last_message", "Nema poruka"),
-                                unreadCount = stvarniUnread
-                            )
-                        )
-                    }
-                    chatsList = tempList
-
-                    val trenutniChat = tempList.find { it.id == activeChatUserId }
-                    if (trenutniChat != null) {
-                        activeChatUserOnline = trenutniChat.isOnline
-                    }
-                }
-            } catch (e: Exception) {
-                Log.e("PrivateChats", "Greška u poleru lista: ${e.message}")
-            }
-            delay(3000)
-        }
-    }
-
-    // --- 1. POLING ZA LISTU PRIVATNIH ČETOVA (Svake 3 sekunde) ---
+    // --- 1. JEDINI I STABILNI POLING ZA LISTU PRIVATNIH ČETOVA (Svake 3 sekunde) ---
+    // Sa ugrađenim skidanjem zaglavlja koje štiti rad Dashboard-a!
     LaunchedEffect(activeChatUserId) {
         while (true) {
             try {
                 val url = NetworkConfig.getPrivateChatsUrl(currentUsername)
-
-                // REŠENJE: Eksplicitno uklanjamo Content-Type zaglavlje kako Ktor ne bi zbunjivao server!
                 val response = withContext(Dispatchers.IO) {
                     client.get(url) {
                         headers.remove(io.ktor.http.HttpHeaders.ContentType)
                     }
                 }
                 val responseText = response.bodyAsText()
-
                 val json = JSONObject(responseText)
+
                 if (json.optBoolean("success", false)) {
                     val array = json.getJSONArray("chats")
                     val tempList = mutableListOf<AndroidPrivateChat>()
@@ -214,23 +121,21 @@ fun PrivateScreen(
         }
     }
 
-    // --- 2. POLING ZA ISTORIJU PORUKA (Radi samo kada uđeš u čet sa nekim) ---
+    // --- 2. JEDINI I STABILNI POLING ZA ISTORIJU PORUKA (Učitava tekst unutar četa) ---
+    // Vraćamo ispravan poziv za 'getPrivateChatUrl' koji ti je falio i čistimo zaglavlja!
     LaunchedEffect(activeChatUserId) {
         onChatToggle(activeChatUserId != 0)
         if (activeChatUserId != 0) {
             while (activeChatUserId != 0) {
                 try {
                     val url = NetworkConfig.getPrivateChatUrl(currentUsername, activeChatUserId)
-
-                    // Čistimo Content-Type zaglavlje i za istoriju poruka unutar četa
                     val response = withContext(Dispatchers.IO) {
                         client.get(url) {
                             headers.remove(io.ktor.http.HttpHeaders.ContentType)
                         }
                     }
-                    val responseText = response.bodyAsText()
+                    val json = JSONObject(response.bodyAsText())
 
-                    val json = JSONObject(responseText)
                     if (json.optBoolean("success", false) || json.has("messages")) {
                         val array = json.getJSONArray("messages")
                         val tempList = mutableListOf<ChatMessage>()
