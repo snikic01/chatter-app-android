@@ -64,7 +64,8 @@ fun PrivateScreen(
     // Searchbar (Ispravljen sa engleskim slovom C na kraju da se reše greške 302 i 309!)
     var searchQuery by remember { mutableStateOf("") }
 
-    // Omotano u remember blok da Compose odmah reaguje čim server vrati očišćene prijatelje
+    //  KONAČNA POPRAVKA NA KLIJENTU: remember mora da ima (chatsList, searchQuery)
+    // kako bi Compose ODMAH izbacio sve ljude koji ti nisu prijatelji čim stignu mrežni podaci!
     val filtriraniCatovi = remember(chatsList, searchQuery) {
         chatsList.filter {
             it.username.contains(searchQuery, ignoreCase = true)
